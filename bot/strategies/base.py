@@ -12,6 +12,8 @@ class MarketData:
     high: int           # instant-sell price
     vol_1h: int
     history: list = field(default_factory=list)   # timeseries candles, if loaded
+    buy_limit: int = 0  # GE 4h buy limit
+    members: bool = False
 
 
 @dataclass

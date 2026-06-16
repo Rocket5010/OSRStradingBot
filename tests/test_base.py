@@ -3,8 +3,15 @@ from bot.strategies.base import Strategy, MarketData, BuySignal, SellDecision
 
 
 def test_marketdata_holds_fields():
-    md = MarketData(item_id=2, name="Cannonball", low=150, high=200, vol_1h=5000, history=[])
+    md = MarketData(item_id=2, name="Cannonball", low=150, high=200,
+                    vol_1h=5000, history=[], buy_limit=11000, members=False)
     assert md.item_id == 2 and md.high == 200
+    assert md.buy_limit == 11000 and md.members is False
+
+
+def test_marketdata_defaults():
+    md = MarketData(item_id=2, name="X", low=1, high=2, vol_1h=0)
+    assert md.history == [] and md.buy_limit == 0 and md.members is False
 
 
 def test_buysignal_defaults():
