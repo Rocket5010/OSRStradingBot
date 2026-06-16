@@ -36,7 +36,7 @@ def bollinger(series, period, k):
         return None
     window = series[-period:]
     mid = statistics.fmean(window)
-    sd = statistics.pstdev(window)
+    sd = statistics.stdev(window)
     return (mid - k * sd, mid, mid + k * sd)
 
 
