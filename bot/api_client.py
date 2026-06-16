@@ -4,8 +4,13 @@ import json
 import time
 import urllib.request
 import urllib.error
+from urllib.parse import urlencode
 
 BASE_URL = "https://prices.runescape.wiki/api/v1/osrs"
+
+
+class ApiError(Exception):
+    pass
 
 
 class WikiClient:
@@ -25,6 +30,8 @@ class WikiClient:
         try:
             with urllib.request.urlopen(req, timeout=20) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            raise ApiError(f"HTTP {e.code} for {url}") from e
         except urllib.error.URLError as e:
             raise ApiError(f"request failed for {url}: {e}") from e
         finally:
@@ -44,8 +51,5 @@ class WikiClient:
         return self._get("/mapping")
 
     def timeseries(self, item_id, timestep):
-        return self._get(f"/timeseries?timestep={timestep}&id={item_id}")["data"]
-
-
-class ApiError(Exception):
-    pass
+        params = urlencode({"timestep": timestep, "id": item_id})
+        return self._get(f"/timeseries?{params}")["data"]
