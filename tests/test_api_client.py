@@ -38,3 +38,13 @@ def test_get_raises_api_error_on_urlerror(monkeypatch):
     c = WikiClient(user_agent="test", min_interval=0)
     with pytest.raises(ApiError):
         c.latest()
+
+
+def test_get_raises_api_error_on_httperror(monkeypatch):
+    def boom(*a, **k):
+        raise urllib.error.HTTPError("u", 404, "Not Found", {}, None)
+    monkeypatch.setattr("urllib.request.urlopen", boom)
+    c = WikiClient(user_agent="test", min_interval=0)
+    with pytest.raises(ApiError) as exc:
+        c.latest()
+    assert "404" in str(exc.value)

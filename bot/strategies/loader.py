@@ -27,5 +27,7 @@ def load_strategies(directory):
         for _, obj in inspect.getmembers(module, inspect.isclass):
             if issubclass(obj, Strategy) and obj is not Strategy:
                 instance = obj()
+                if instance.name in found:
+                    warnings.warn(f"duplicate strategy name '{instance.name}' in {fname}; overwriting")
                 found[instance.name] = instance
     return found

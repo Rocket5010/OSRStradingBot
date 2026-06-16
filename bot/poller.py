@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 def poll_once(client, conn):
     latest = client.latest()
-    one_hour = client.one_hour()
+    one_hour = {str(k): v for k, v in client.one_hour().items()}
     ts = datetime.now(timezone.utc).isoformat()
     written = 0
     for item_id, lt in latest.items():
