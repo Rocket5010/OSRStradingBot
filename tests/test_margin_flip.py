@@ -47,3 +47,13 @@ def test_should_hold_in_between():
     pos = SimpleNamespace(buy_price=100)
     m = md(1, low=98, high=100, vol=500)
     assert s.should_sell(pos, m).sell is False
+
+
+def test_budget_depletes_across_items():
+    s = MarginFlip(min_margin=10, min_vol=100, min_roi=0.0)
+    # two profitable items, price 100 each, buy_limit large; budget only 150
+    markets = [md(1, low=100, high=130, vol=500, limit=10_000),
+               md(2, low=100, high=130, vol=500, limit=10_000)]
+    buys = s.find_buys(markets, budget=150)
+    spent = sum(b.price * b.qty for b in buys)
+    assert spent <= 150

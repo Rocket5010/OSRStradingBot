@@ -19,7 +19,7 @@ def mean(series):
 
 
 def stdev(series):
-    """Sample standard deviation."""
+    """Sample standard deviation (N-1). Used consistently for bands."""
     return statistics.stdev(series)
 
 
@@ -41,7 +41,7 @@ def bollinger(series, period, k):
 
 
 def rsi(series, period):
-    """Wilder-style RSI over the last `period` deltas; None if too short."""
+    """Simple-average (Cutler's) RSI over the last `period` deltas; None if too short."""
     if len(series) < period + 1:
         return None
     deltas = [series[i] - series[i - 1] for i in range(1, len(series))]
@@ -57,5 +57,8 @@ def rsi(series, period):
 
 
 def window_high(series, window):
-    """Highest value in the last `window` points."""
-    return max(series[-window:])
+    """Highest value in the last `window` points, or None if series is empty."""
+    tail = series[-window:]
+    if not tail:
+        return None
+    return max(tail)

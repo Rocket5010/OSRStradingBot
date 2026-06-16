@@ -49,7 +49,7 @@ class CrashRecovery(Strategy):
         stop = position.buy_price * (1 - self.params["stop_loss_pct"])
         if market.high <= stop:
             return SellDecision(sell=True, reason="stop-loss")
-        ref = self._reference(market)
+        ref = getattr(position, "ref_price", None) or self._reference(market)
         if ref is not None and market.high >= ref * self.params["recover_pct"]:
             return SellDecision(sell=True, reason="recovered")
         return SellDecision(sell=False, reason="hold")
