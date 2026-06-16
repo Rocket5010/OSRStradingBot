@@ -23,3 +23,11 @@ def test_ignores_non_strategy_files(tmp_path):
     (tmp_path / "notes.py").write_text("x = 1\n")
     found = load_strategies(str(tmp_path))
     assert found == {}
+
+
+def test_skips_broken_strategy_file(tmp_path):
+    (tmp_path / "broken.py").write_text("import nonexistent_module_xyz\n")
+    (tmp_path / "mystrat.py").write_text(STRAT_SRC)
+    found = load_strategies(str(tmp_path))
+    assert "mystrat" in found      # good one still loads
+    assert "broken" not in found
