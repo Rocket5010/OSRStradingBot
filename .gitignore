@@ -1,0 +1,17 @@
+# brainstorm scratch
+.superpowers/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# bot runtime data
+*.db
+*.sqlite
+*.sqlite3
+
+# obsidian workspace state (keep notes, drop UI state)
+Bot vault/.obsidian/workspace.json
