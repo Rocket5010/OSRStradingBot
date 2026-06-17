@@ -46,3 +46,51 @@ def test_config_roundtrip():
     c = client()
     c.post("/api/config/capital", json={"value": "42000000"})
     assert c.get("/api/config/capital").json()["value"] == "42000000"
+
+
+def _make_position(c, run_id=None):
+    return c.post("/api/positions", json={
+        "strategy": "rsi", "item_id": 2, "item_name": "Cb",
+        "buy_price": 100, "qty": 10, "run_id": run_id,
+        "sell_target": 120, "stop_loss": 90,
+    }).json()
+
+
+def test_create_and_list_position():
+    c = client()
+    p = _make_position(c)
+    assert p["state"] == "proposed"
+    listed = c.get("/api/positions?state=proposed").json()
+    assert len(listed) == 1
+
+
+def test_position_full_lifecycle():
+    c = client()
+    rid = c.post("/api/runs", json={"strategy": "rsi", "budget_gp": 10_000}).json()["id"]
+    pid = _make_position(c, run_id=rid)["id"]
+    assert c.post(f"/api/positions/{pid}/accept").json()["state"] == "accepted"
+    assert c.post(f"/api/positions/{pid}/fill").json()["state"] == "filled"
+    assert c.post(f"/api/positions/{pid}/sell").json()["state"] == "selling"
+    sold = c.post(f"/api/positions/{pid}/sold", json={"sell_price": 120}).json()
+    assert sold["state"] == "sold" and sold["realized_pl"] == 180
+
+
+def test_illegal_transition_409():
+    c = client()
+    pid = _make_position(c)["id"]
+    # cannot fill a proposed position (must accept first)
+    assert c.post(f"/api/positions/{pid}/fill").status_code == 409
+
+
+def test_missing_position_404():
+    c = client()
+    assert c.post("/api/positions/999/accept").status_code == 404
+
+
+def test_dismiss_and_cancel():
+    c = client()
+    pid = _make_position(c)["id"]
+    assert c.post(f"/api/positions/{pid}/dismiss").json()["state"] == "dismissed"
+    pid2 = _make_position(c)["id"]
+    c.post(f"/api/positions/{pid2}/accept")
+    assert c.post(f"/api/positions/{pid2}/cancel").json()["state"] == "cancelled"

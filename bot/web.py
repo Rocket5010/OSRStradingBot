@@ -79,4 +79,50 @@ def create_app(conn, strategies_dir=None):
         db_mod.set_config(conn, key, body.value)
         return {"key": key, "value": body.value}
 
+    @app.get("/api/positions")
+    def list_positions(state: str | None = None):
+        return [_row(r) for r in pos_mod.list_positions(conn, state)]
+
+    @app.post("/api/positions")
+    def create_position(body: CreatePositionBody):
+        pid = pos_mod.create_proposed(
+            conn, strategy=body.strategy, item_id=body.item_id,
+            item_name=body.item_name, buy_price=body.buy_price, qty=body.qty,
+            run_id=body.run_id, sell_target=body.sell_target,
+            stop_loss=body.stop_loss)
+        return _row(pos_mod.get(conn, pid))
+
+    def _transition(pid, fn, *args):
+        if pos_mod.get(conn, pid) is None:
+            raise HTTPException(status_code=404, detail="position not found")
+        try:
+            fn(conn, pid, *args)
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        return _row(pos_mod.get(conn, pid))
+
+    @app.post("/api/positions/{pid}/accept")
+    def accept_position(pid: int):
+        return _transition(pid, pos_mod.accept)
+
+    @app.post("/api/positions/{pid}/fill")
+    def fill_position(pid: int):
+        return _transition(pid, pos_mod.mark_filled)
+
+    @app.post("/api/positions/{pid}/sell")
+    def sell_position(pid: int):
+        return _transition(pid, pos_mod.start_selling)
+
+    @app.post("/api/positions/{pid}/sold")
+    def sold_position(pid: int, body: SellBody):
+        return _transition(pid, pos_mod.mark_sold, body.sell_price)
+
+    @app.post("/api/positions/{pid}/cancel")
+    def cancel_position(pid: int):
+        return _transition(pid, pos_mod.cancel)
+
+    @app.post("/api/positions/{pid}/dismiss")
+    def dismiss_position(pid: int):
+        return _transition(pid, pos_mod.dismiss)
+
     return app
