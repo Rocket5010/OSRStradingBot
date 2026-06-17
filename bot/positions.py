@@ -87,7 +87,7 @@ def mark_sold(conn, pid, sell_price):
 
 def cancel(conn, pid):
     p = get(conn, pid)
-    _require(p, "accepted", "selling")
+    _require(p, "accepted", "filled", "selling")
     conn.execute("UPDATE positions SET state='cancelled', closed_at=? WHERE id=?",
                  (_now(), pid))
     if p["run_id"]:

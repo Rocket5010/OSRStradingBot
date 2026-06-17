@@ -67,3 +67,26 @@ def test_list_filters_by_state():
     pos.dismiss(conn, b)
     proposed = pos.list_positions(conn, state="proposed")
     assert {p["id"] for p in proposed} == {a}
+
+
+def test_cancel_from_selling_releases_capital():
+    conn = fresh()
+    rid = runs.start_run(conn, "rsi", budget_gp=10_000)
+    pid = make(conn, run_id=rid, buy_price=100, qty=10)
+    pos.accept(conn, pid)
+    pos.mark_filled(conn, pid)
+    pos.start_selling(conn, pid)
+    pos.cancel(conn, pid)
+    assert pos.get(conn, pid)["state"] == "cancelled"
+    assert runs.available(conn, rid) == 10_000
+
+
+def test_cancel_from_filled_releases_capital():
+    conn = fresh()
+    rid = runs.start_run(conn, "rsi", budget_gp=10_000)
+    pid = make(conn, run_id=rid, buy_price=100, qty=10)
+    pos.accept(conn, pid)
+    pos.mark_filled(conn, pid)
+    pos.cancel(conn, pid)
+    assert pos.get(conn, pid)["state"] == "cancelled"
+    assert runs.available(conn, rid) == 10_000
