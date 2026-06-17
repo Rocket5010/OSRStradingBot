@@ -131,3 +131,10 @@ def test_root_serves_dashboard():
 def test_api_still_works_after_mount():
     c = client()
     assert c.get("/api/strategies").status_code == 200
+
+
+def test_appjs_served():
+    c = client()
+    r = c.get("/app.js")
+    assert r.status_code == 200
+    assert "refresh" in r.text
