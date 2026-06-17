@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from bot import db as db_mod
@@ -158,5 +159,8 @@ def create_app(conn, strategies_dir=None):
             "bond_days": cfg_int("bond_days", 14),
             "goal_progress": (profit_row["s"] / bond_price) if bond_price else 0.0,
         }
+
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
     return app

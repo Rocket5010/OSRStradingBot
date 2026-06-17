@@ -119,3 +119,15 @@ def test_overview_reflects_capital_and_committed():
     assert o["committed"] == 10000
     assert o["free"] == 990000
     assert o["open_positions"] == 1
+
+
+def test_root_serves_dashboard():
+    c = client()
+    r = c.get("/")
+    assert r.status_code == 200
+    assert "<div id=\"app\">" in r.text
+
+
+def test_api_still_works_after_mount():
+    c = client()
+    assert c.get("/api/strategies").status_code == 200
