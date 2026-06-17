@@ -41,7 +41,8 @@ def _has_open_position(conn, run_id, item_id):
 
 def evaluate(conn, markets, now, loader=load_strategies):
     """markets: {item_id: MarketData}. Creates buy proposals for running runs
-    and sell-recommendation signals for filled positions."""
+    (within available budget) and sell-recommendation signals for filled
+    positions (one per position)."""
     market_list = list(markets.values())
 
     # --- buys, per running run ---
@@ -50,9 +51,18 @@ def evaluate(conn, markets, now, loader=load_strategies):
         strat = _make_strategy(run["strategy"], params, loader)
         if strat is None:
             continue
-        budget = runs_mod.available(conn, run["id"])
+        # available budget minus capital already tied up in this run's open
+        # proposals (accepted+ is already reflected in spent_gp/available).
+        proposed_cost = conn.execute(
+            "SELECT COALESCE(SUM(buy_price * qty), 0) AS s FROM positions "
+            "WHERE run_id=? AND state='proposed'", (run["id"],)).fetchone()["s"]
+        budget = runs_mod.available(conn, run["id"]) - proposed_cost
+        spent_this_pass = 0
         for sig in strat.find_buys(market_list, budget):
             if _has_open_position(conn, run["id"], sig.item_id):
+                continue
+            cost = sig.price * sig.qty
+            if cost > budget - spent_this_pass:
                 continue
             m = markets.get(sig.item_id)
             name = m.name if m else str(sig.item_id)
@@ -60,14 +70,17 @@ def evaluate(conn, markets, now, loader=load_strategies):
                 conn, strategy=run["strategy"], item_id=sig.item_id,
                 item_name=name, buy_price=sig.price, qty=sig.qty,
                 run_id=run["id"])
+            spent_this_pass += cost
 
-    # --- sell recommendations, per filled position ---
+    # --- sell recommendations, per filled position (one signal per position) ---
     for p in pos_mod.list_positions(conn, state="filled"):
         m = markets.get(p["item_id"])
         if m is None:
             continue
         pos_mod.update_high_water(conn, p["id"], m.high)
-        strat = _make_strategy(p["strategy"], {}, loader)
+        run = runs_mod.get_run(conn, p["run_id"]) if p["run_id"] else None
+        sparams = json.loads(run["params_json"]) if run and run["params_json"] else {}
+        strat = _make_strategy(p["strategy"], sparams, loader)
         if strat is None:
             continue
         view = position_view(pos_mod.get(conn, p["id"]))
@@ -75,12 +88,13 @@ def evaluate(conn, markets, now, loader=load_strategies):
         if not decision.sell:
             continue
         exists = conn.execute(
-            "SELECT 1 FROM signals WHERE item_id=? AND strategy=? AND type='sell' "
-            "AND status='shown' LIMIT 1", (p["item_id"], p["strategy"])).fetchone()
+            "SELECT 1 FROM signals WHERE position_id=? AND type='sell' "
+            "AND status='shown' LIMIT 1", (p["id"],)).fetchone()
         if exists:
             continue
         conn.execute(
-            "INSERT INTO signals(item_id, strategy, type, price, reason, "
-            "created_at, status) VALUES(?, ?, 'sell', ?, ?, ?, 'shown')",
-            (p["item_id"], p["strategy"], m.high, decision.reason, _now_iso()))
+            "INSERT INTO signals(item_id, position_id, strategy, type, price, "
+            "reason, created_at, status) VALUES(?, ?, ?, 'sell', ?, ?, ?, 'shown')",
+            (p["item_id"], p["id"], p["strategy"], m.high, decision.reason,
+             _now_iso()))
         conn.commit()

@@ -83,3 +83,50 @@ def test_high_water_raised_for_filled():
     pos.accept(conn, pid); pos.mark_filled(conn, pid)
     evaluate(conn, {1: market(1, 150, 190)}, now=0.0, loader=loader_stub)
     assert pos.get(conn, pid)["high_water"] == 190
+
+
+class GreedyBuy:
+    """Returns a signal for EVERY market item, ignoring budget (engine must cap)."""
+    name = "greedy"
+    def __init__(self, **p): self.params = p
+    def find_buys(self, markets, budget):
+        return [BuySignal(item_id=m.item_id, price=m.low, qty=1, reason="x")
+                for m in markets]
+    def should_sell(self, position, market):
+        return SellDecision(sell=False, reason="")
+
+
+def greedy_loader(_dir):
+    return {"greedy": GreedyBuy()}
+
+
+def test_engine_caps_total_proposals_at_budget():
+    conn = fresh()
+    runs.start_run(conn, "greedy", budget_gp=250)
+    markets = {1: market(1, 100, 150), 2: market(2, 100, 150), 3: market(3, 100, 150)}
+    evaluate(conn, markets, now=0.0, loader=greedy_loader)
+    proposed = pos.list_positions(conn, state="proposed")
+    total = sum(p["buy_price"] * p["qty"] for p in proposed)
+    assert total <= 250
+    # second pass must not exceed budget either (proposals count against it)
+    evaluate(conn, markets, now=0.0, loader=greedy_loader)
+    proposed = pos.list_positions(conn, state="proposed")
+    assert sum(p["buy_price"] * p["qty"] for p in proposed) <= 250
+
+
+def test_new_position_gets_fresh_sell_signal():
+    conn = fresh()
+    rid = runs.start_run(conn, "alwaysbuy", budget_gp=10_000)
+    # first filled position, sells
+    pid1 = pos.create_proposed(conn, strategy="alwaysbuy", item_id=1, item_name="i1",
+                               buy_price=100, qty=1, run_id=rid)
+    pos.accept(conn, pid1); pos.mark_filled(conn, pid1)
+    evaluate(conn, {1: market(1, 180, 220)}, now=0.0, loader=loader_stub)
+    pos.start_selling(conn, pid1); pos.mark_sold(conn, pid1, 220)
+    # a NEW filled position for the same item+strategy
+    pid2 = pos.create_proposed(conn, strategy="alwaysbuy", item_id=1, item_name="i1",
+                               buy_price=100, qty=1, run_id=rid)
+    pos.accept(conn, pid2); pos.mark_filled(conn, pid2)
+    evaluate(conn, {1: market(1, 180, 220)}, now=0.0, loader=loader_stub)
+    sigs = conn.execute("SELECT * FROM signals WHERE type='sell'").fetchall()
+    assert len(sigs) == 2  # one per position, not blocked by the old signal

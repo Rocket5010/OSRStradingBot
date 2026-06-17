@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS positions (
 CREATE TABLE IF NOT EXISTS signals (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id INTEGER NOT NULL,
+    position_id INTEGER,
     strategy TEXT NOT NULL,
     type TEXT NOT NULL,
     price INTEGER, margin INTEGER, roi REAL,
@@ -48,6 +49,7 @@ CREATE TABLE IF NOT EXISTS price_cache (
 def connect(path):
     conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
