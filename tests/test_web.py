@@ -94,3 +94,28 @@ def test_dismiss_and_cancel():
     pid2 = _make_position(c)["id"]
     c.post(f"/api/positions/{pid2}/accept")
     assert c.post(f"/api/positions/{pid2}/cancel").json()["state"] == "cancelled"
+
+
+def test_overview_defaults_zero():
+    c = client()
+    o = c.get("/api/overview").json()
+    assert o["capital"] == 0
+    assert o["committed"] == 0
+    assert o["free"] == 0
+    assert o["open_positions"] == 0
+    assert "bond_price" in o and "period_profit" in o
+
+
+def test_overview_reflects_capital_and_committed():
+    c = client()
+    c.post("/api/config/capital", json={"value": "1000000"})
+    rid = c.post("/api/runs", json={"strategy": "rsi", "budget_gp": 1000000}).json()["id"]
+    pid = c.post("/api/positions", json={
+        "strategy": "rsi", "item_id": 2, "item_name": "Cb",
+        "buy_price": 100, "qty": 100, "run_id": rid}).json()["id"]
+    c.post(f"/api/positions/{pid}/accept")   # commits 100*100 = 10_000
+    o = c.get("/api/overview").json()
+    assert o["capital"] == 1000000
+    assert o["committed"] == 10000
+    assert o["free"] == 990000
+    assert o["open_positions"] == 1

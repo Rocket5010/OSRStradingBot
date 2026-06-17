@@ -3,6 +3,7 @@
 tests can pass an in-memory DB. Presentation-agnostic — returns plain JSON."""
 
 import os
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -11,6 +12,9 @@ from bot import db as db_mod
 from bot import runs as runs_mod
 from bot import positions as pos_mod
 from bot.strategies.loader import load_strategies
+
+
+_OPEN = ("accepted", "filled", "selling")
 
 
 def _row(r):
@@ -124,5 +128,35 @@ def create_app(conn, strategies_dir=None):
     @app.post("/api/positions/{pid}/dismiss")
     def dismiss_position(pid: int):
         return _transition(pid, pos_mod.dismiss)
+
+    @app.get("/api/overview")
+    def overview():
+        def cfg_int(key, default=0):
+            v = db_mod.get_config(conn, key)
+            return int(v) if v is not None else default
+
+        capital = cfg_int("capital")
+        committed_row = conn.execute(
+            "SELECT COALESCE(SUM(buy_price * qty), 0) AS s FROM positions "
+            f"WHERE state IN ({','.join('?' * len(_OPEN))})", _OPEN).fetchone()
+        committed = committed_row["s"]
+        open_count = conn.execute(
+            f"SELECT COUNT(*) AS c FROM positions WHERE state IN "
+            f"({','.join('?' * len(_OPEN))})", _OPEN).fetchone()["c"]
+        period_start = db_mod.get_config(conn, "goal_period_start") or ""
+        profit_row = conn.execute(
+            "SELECT COALESCE(SUM(realized_pl), 0) AS s FROM positions "
+            "WHERE state='sold' AND closed_at >= ?", (period_start,)).fetchone()
+        bond_price = cfg_int("bond_price", 0)
+        return {
+            "capital": capital,
+            "committed": committed,
+            "free": capital - committed,
+            "open_positions": open_count,
+            "period_profit": profit_row["s"],
+            "bond_price": bond_price,
+            "bond_days": cfg_int("bond_days", 14),
+            "goal_progress": (profit_row["s"] / bond_price) if bond_price else 0.0,
+        }
 
     return app
