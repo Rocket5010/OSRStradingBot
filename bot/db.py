@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS positions (
     state TEXT NOT NULL,
     buy_price INTEGER, qty INTEGER, buy_tax INTEGER,
     sell_target INTEGER, stop_loss INTEGER, max_hold_until TEXT,
+    high_water INTEGER, ref_price INTEGER,
     sell_price INTEGER, realized_pl INTEGER,
     created_at TEXT, filled_at TEXT, closed_at TEXT
 );

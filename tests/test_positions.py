@@ -90,3 +90,16 @@ def test_cancel_from_filled_releases_capital():
     pos.cancel(conn, pid)
     assert pos.get(conn, pid)["state"] == "cancelled"
     assert runs.available(conn, rid) == 10_000
+
+
+def test_high_water_and_ref_price_default_and_update():
+    conn = fresh()
+    pid = pos.create_proposed(conn, strategy="breakout", item_id=2, item_name="Cb",
+                              buy_price=100, qty=10, ref_price=130)
+    row = pos.get(conn, pid)
+    assert row["ref_price"] == 130
+    assert row["high_water"] == 100   # defaults to buy_price
+    pos.update_high_water(conn, pid, 150)
+    assert pos.get(conn, pid)["high_water"] == 150
+    pos.update_high_water(conn, pid, 120)   # never decreases
+    assert pos.get(conn, pid)["high_water"] == 150
