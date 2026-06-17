@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS price_cache (
 
 
 def connect(path):
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
