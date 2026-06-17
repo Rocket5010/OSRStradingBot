@@ -7,10 +7,10 @@ Build the whole thing to completion — no early MVP. Phases are a dependency or
 3. ✅ **Backtest engine** — [[Backtesting]]: run the contract over history, rank strategies.
 4. ✅ **Web backend (4a)** — `web.py` JSON API; `positions.py` + [[Position Lifecycle|state machine]]; manual start + [[Strategy System|per-strategy budget]].
    ✅ **Live engine (4b)** — `market.py` (assemble MarketData + cached `/timeseries`), `engine_live.py` (proposals within budget + sell recs), `scheduler.py` (5-min daemon thread, own db conn), `main.py`.
-5. ⏳ **Dashboard** — `static/` from the mockup; strategy start/stop + budget input; accept/sell/cancel wired to API; live refresh; [[Bond Goal|bond tracker]]; backtest view. **← NEXT**
-6. ⏳ **Polish** — [[Launch|one-click launcher]] + auto-start; `notify.py`.
+5. ✅ **Dashboard** — `bot/static/` (index.html + style.css + app.js) dark+gold UI; strategy start/stop + budget input; buy-signal + position tables with accept/fill/sell/sold/cancel/dismiss; `/api/overview` + [[Bond Goal|bond tracker]]; 5s live refresh. Served by FastAPI.
+6. ⏳ **Polish** — [[Launch|one-click launcher]] + auto-start; `notify.py`; bond_price/goal-period config refresh. **← NEXT**
 
 **Later (not now):** move to Oracle Cloud Free VM ([[Launch]]).
 
 ## Status (2026-06-17)
-Phases 1–4 complete. **118 tests passing**, all pushed to GitHub. The "brain" runs end-to-end against live OSRS data: polls prices, runs strategies within budget, proposes buys, recommends sells. Remaining: Phase 5 (dashboard UI) + Phase 6 (launcher + notifications).
+Phases 1–5 complete. **123 tests passing**, all pushed to GitHub. The "brain" runs end-to-end against live OSRS data and the dark+gold dashboard (`python -m bot.main` → http://127.0.0.1:8000) renders it. Remaining: Phase 6 (launcher + notifications + bond-price config refresh).

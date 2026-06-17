@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "osrs-flip-bot",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "bot.main"],
+      "port": 8000
+    }
+  ]
+}
