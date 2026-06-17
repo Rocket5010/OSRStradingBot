@@ -13,6 +13,8 @@ class StubClient:
         return []
     def mapping(self):
         return [{"id": 1, "name": "Item1", "limit": 1000, "members": False}]
+    def latest_item(self, item_id):
+        return {"high": 14000000, "low": 13300000}
 
 
 class AlwaysBuy:
@@ -38,3 +40,27 @@ def test_tick_polls_then_proposes():
     # price_cache populated by poll, and a proposal created by evaluate
     assert conn.execute("SELECT COUNT(*) c FROM price_cache").fetchone()["c"] == 1
     assert len(pos.list_positions(conn, state="proposed")) == 1
+
+
+def test_tick_notifies_new_proposals():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.set_config(conn, "notify_webhook", "http://hook")
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000)
+    sent = []
+    sched = PollScheduler(conn, StubClient(), watchlist=[1], loader=loader_stub,
+                          notifier=lambda url, msg: sent.append(msg),
+                          goal_interval_s=0)
+    sched.tick(now=0.0)
+    assert any("Item1" in m for m in sent)   # a buy notification fired
+
+
+def test_tick_no_notify_without_webhook():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000)
+    sent = []
+    sched = PollScheduler(conn, StubClient(), watchlist=[1], loader=loader_stub,
+                          notifier=lambda url, msg: sent.append(msg))
+    sched.tick(now=0.0)
+    assert sent == []

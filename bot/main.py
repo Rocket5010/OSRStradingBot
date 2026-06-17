@@ -24,6 +24,8 @@ def build():
     client = WikiClient(user_agent=USER_AGENT)
 
     sched_conn = db.connect(DB_PATH)   # separate connection for the thread
+    # scheduler also refreshes the bond goal daily and sends webhook
+    # notifications when config key 'notify_webhook' is set.
     scheduler = PollScheduler(sched_conn, client, watchlist=WATCHLIST)
 
     app = create_app(api_conn)
