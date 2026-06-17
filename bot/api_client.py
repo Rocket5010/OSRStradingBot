@@ -41,6 +41,9 @@ class WikiClient:
     def latest(self):
         return self._get("/latest")["data"]
 
+    def latest_item(self, item_id):
+        return self._get(f"/latest?id={item_id}")["data"][str(item_id)]
+
     def five_min(self):
         return self._get("/5m")["data"]
 
