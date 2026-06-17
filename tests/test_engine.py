@@ -51,9 +51,17 @@ def test_max_hold_forces_close():
     candles = [candle(hi=105, lo=100), candle(hi=106, lo=104), candle(hi=107, lo=105)]
     res = run_backtest(BuyOnceSellHigh(), candles, budget=1000, max_hold_steps=1)
     assert res.n_trades == 1  # forced close, not left open
+    # opened at index 0, max_hold_steps=1 -> closes at index 1 (high=106)
+    assert res.trades[0]["sell_price"] == 106
 
 
 def test_open_position_liquidated_at_end():
     candles = [candle(hi=105, lo=100), candle(hi=106, lo=104)]
     res = run_backtest(BuyOnceSellHigh(), candles, budget=1000)
     assert res.n_trades == 1  # closed via end-of-data liquidation
+
+
+def test_final_equity_equals_budget_plus_profit():
+    candles = [candle(hi=105, lo=100), candle(hi=120, lo=118)]
+    res = run_backtest(BuyOnceSellHigh(), candles, budget=1000)
+    assert res.final_equity == 1000 + res.total_profit

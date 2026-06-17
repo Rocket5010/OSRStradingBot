@@ -52,12 +52,17 @@ def run_backtest(strategy, candles, budget, item_id=1, name="item",
             continue
         last_high = hi
         vol = (c.get("highPriceVolume") or 0) + (c.get("lowPriceVolume") or 0)
+        # history includes the current candle: at step i the current candle's
+        # prices are known (same data find_buys/should_sell act on). Not look-ahead
+        # — future candles (i+1..) are never exposed.
         md = MarketData(item_id=item_id, name=name, low=lo, high=hi, vol_1h=vol,
                         history=candles[:i + 1], buy_limit=buy_limit, members=members)
 
         # sells first
         for pos in list(open_positions):
             pos.high_water = max(pos.high_water, hi)
+            # max_hold_steps = N: close once the position has been held N steps
+            # since its open candle (open at index k closes at index k+N).
             forced = max_hold_steps is not None and (i - pos.open_index) >= max_hold_steps
             decision = strategy.should_sell(pos, md)
             if decision.sell or forced:
