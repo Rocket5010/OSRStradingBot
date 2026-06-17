@@ -125,7 +125,7 @@ def test_root_serves_dashboard():
     c = client()
     r = c.get("/")
     assert r.status_code == 200
-    assert "<div id=\"app\">" in r.text
+    assert "status-text" in r.text
 
 
 def test_api_still_works_after_mount():

@@ -1,3 +1,67 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Flip Bot</title></head>
-<body><div id="app">loading</div></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSRS Flip Bot</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand"><div class="logo">GE</div>
+      <div><h1>Flip Bot <small>· OSRS</small></h1></div></div>
+    <div class="status"><span class="dot"></span> <span id="status-text">connecting…</span></div>
+  </header>
+
+  <section class="stats">
+    <div class="card"><div class="label">Capital</div>
+      <div class="big" id="stat-capital">–</div>
+      <div class="sub" id="stat-capital-sub"></div></div>
+    <div class="card"><div class="label">Profit this period</div>
+      <div class="big" id="stat-profit">–</div>
+      <div class="sub">toward bond goal</div></div>
+    <div class="card"><div class="label">Open positions</div>
+      <div class="big" id="stat-open">–</div>
+      <div class="sub" id="stat-open-sub"></div></div>
+    <div class="card"><div class="label">Bond price</div>
+      <div class="big" id="stat-bond">–</div>
+      <div class="sub">live target</div></div>
+  </section>
+
+  <section class="goal">
+    <div class="goal-head"><h3>🎯 Bond goal · this period</h3>
+      <span id="goal-text"></span></div>
+    <div class="bar"><span id="goal-bar"></span></div>
+  </section>
+
+  <section class="runs card">
+    <h2>Strategies</h2>
+    <div class="run-form">
+      <select id="run-strategy"></select>
+      <input id="run-budget" type="number" placeholder="budget (gp)">
+      <button id="run-start" class="btn accept">Start</button>
+    </div>
+    <table><thead><tr><th>Strategy</th><th>Budget</th><th>Spent</th>
+      <th>State</th><th></th></tr></thead>
+      <tbody id="runs-body"></tbody></table>
+  </section>
+
+  <div class="panels">
+    <section class="panel">
+      <h2>Buy signals</h2>
+      <table><thead><tr><th>Item</th><th>Buy</th><th>Qty</th><th></th></tr></thead>
+        <tbody id="buys-body"></tbody></table>
+    </section>
+    <section class="panel">
+      <h2>Your positions</h2>
+      <table><thead><tr><th>Item</th><th>State</th><th>P/L</th><th></th></tr></thead>
+        <tbody id="positions-body"></tbody></table>
+    </section>
+  </div>
+
+  <p class="legend" id="legend">Bot proposes — you place trades in the GE.</p>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
