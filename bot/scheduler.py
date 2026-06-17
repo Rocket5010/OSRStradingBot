@@ -65,13 +65,21 @@ class PollScheduler:
         if webhook:
             for p in pos.list_positions(self.conn, "proposed"):
                 if p["id"] not in before_props:
-                    self.notifier(webhook, notify_mod.format_buy(
-                        p["item_name"], p["buy_price"], p["qty"], "signal"))
+                    try:
+                        self.notifier(webhook, notify_mod.format_buy(
+                            p["item_name"], p["buy_price"], p["qty"], "signal"))
+                    except Exception:
+                        pass
             for r in self.conn.execute(
                     "SELECT * FROM signals WHERE type='sell'").fetchall():
                 if r["id"] not in before_sells:
-                    self.notifier(webhook, notify_mod.format_sell(
-                        r["item_id"], r["price"], r["reason"] or ""))
+                    meta = self._mapping.get(str(r["item_id"]), {})
+                    name = meta.get("name", str(r["item_id"]))
+                    try:
+                        self.notifier(webhook, notify_mod.format_sell(
+                            name, r["price"], r["reason"] or ""))
+                    except Exception:
+                        pass
 
     def _loop(self):
         while not self._stop.is_set():
