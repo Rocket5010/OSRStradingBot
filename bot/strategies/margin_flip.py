@@ -1,17 +1,9 @@
 # bot/strategies/margin_flip.py
 """Active flipping: buy items with a healthy spread after GE tax."""
 
-from math import floor
-
 from bot.strategies.base import Strategy, BuySignal, SellDecision
 from bot.strategies.sizing import size_qty
-
-TAX_RATE = 0.02
-TAX_CAP = 5_000_000
-
-
-def ge_tax(price):
-    return min(floor(price * TAX_RATE), TAX_CAP)
+from bot.tax import ge_tax
 
 
 class MarginFlip(Strategy):
