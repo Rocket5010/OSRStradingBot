@@ -18,3 +18,8 @@ Bot vault/.obsidian/workspace.json
 
 # local pytest temp
 .pytmp/
+
+# sqlite runtime sidecars
+osrs_bot.db*
+*.db-wal
+*.db-shm
