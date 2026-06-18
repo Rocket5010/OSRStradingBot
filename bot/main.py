@@ -14,6 +14,11 @@ from bot.web import create_app
 DB_PATH = os.environ.get("OSRS_BOT_DB", "osrs_bot.db")
 USER_AGENT = os.environ.get(
     "OSRS_BOT_UA", "osrs-flip-bot/1.0 (contact: set OSRS_BOT_UA)")
+# Bind address: default private (127.0.0.1). Set OSRS_BOT_HOST=0.0.0.0 to reach
+# the dashboard from another machine (e.g. a local practice VM). Do NOT expose
+# 0.0.0.0 on a public server without a firewall/auth — use an SSH tunnel there.
+HOST = os.environ.get("OSRS_BOT_HOST", "127.0.0.1")
+PORT = int(os.environ.get("OSRS_BOT_PORT", "8000"))
 # Default watchlist; replace/extend via config later.
 WATCHLIST = [4151, 11802, 11832, 4712, 11785]
 
@@ -37,7 +42,7 @@ def main():
     app, scheduler = build()
     scheduler.start()
     try:
-        uvicorn.run(app, host="127.0.0.1", port=8000)
+        uvicorn.run(app, host=HOST, port=PORT)
     finally:
         scheduler.stop()
 

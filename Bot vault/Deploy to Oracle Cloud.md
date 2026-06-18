@@ -12,6 +12,10 @@ one-time setup — daily use is the same web dashboard as local. Part of
 
 Anything in `<angle brackets>` is a placeholder — replace it with your value.
 
+> **New to Linux? Rehearse locally first:** [[Practice in a Local VM]] runs these
+> exact steps in a free local VM (Multipass/VirtualBox) — no cloud account, no
+> bandwidth, nothing to break.
+
 ---
 
 ## 1. Create the server (in the Oracle web console)
