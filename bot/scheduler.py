@@ -1,10 +1,13 @@
 # bot/scheduler.py
 """Background poll+evaluate scheduler. Owns its own db connection."""
 
+import logging
 import threading
 import time
 
 from bot.poller import poll_once
+
+log = logging.getLogger("bot.scheduler")
 from bot.engine_live import evaluate
 from bot.strategies.loader import load_strategies
 
@@ -51,7 +54,7 @@ class PollScheduler:
             try:
                 goal_mod.refresh_bond_goal(self.conn, self.client)
             except Exception:
-                pass
+                log.exception("bond goal refresh failed")
             self._last_goal = now
 
         poll_once(self.client, self.conn)
@@ -61,7 +64,7 @@ class PollScheduler:
             try:
                 self._curate(now)
             except Exception:
-                pass
+                log.exception("curation failed")
             self._last_curate = now
 
         from bot.curator import get_watchlist
@@ -84,7 +87,7 @@ class PollScheduler:
                         self.notifier(webhook, notify_mod.format_buy(
                             p["item_name"], p["buy_price"], p["qty"], "signal"))
                     except Exception:
-                        pass
+                        log.warning("notification failed", exc_info=True)
             for r in self.conn.execute(
                     "SELECT * FROM signals WHERE type='sell'").fetchall():
                 if r["id"] not in before_sells:
@@ -94,7 +97,7 @@ class PollScheduler:
                         self.notifier(webhook, notify_mod.format_sell(
                             name, r["price"], r["reason"] or ""))
                     except Exception:
-                        pass
+                        log.warning("notification failed", exc_info=True)
 
     def _curate(self, now):
         from bot import db, curator
@@ -118,7 +121,7 @@ class PollScheduler:
             try:
                 self.tick()
             except Exception:
-                pass  # a poll failure must not kill the loop
+                log.exception("scheduler tick failed")  # keep the loop alive
             self._stop.wait(self.interval_s)
 
     def start(self):

@@ -92,3 +92,8 @@ def test_curation_runs_and_writes_watchlist():
     # StubClient.timeseries returns [] so no candidate qualifies, but the
     # curation pass must run without error and leave watchlist usable.
     assert curator.get_watchlist(conn, default=[1]) is not None
+
+
+def test_scheduler_has_logger():
+    import bot.scheduler as s
+    assert s.log.name == "bot.scheduler"
