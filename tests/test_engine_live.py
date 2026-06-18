@@ -176,3 +176,16 @@ def test_proposal_without_market_data_is_kept():
                               buy_price=100, qty=1, run_id=rid)
     evaluate(conn, {}, now=0.0, loader=onlytwo_loader)   # no market data at all
     assert pos.get(conn, pid)["state"] == "proposed"
+
+
+def test_make_strategy_caches_loader():
+    import bot.engine_live as el
+    el._strategy_cache.clear()
+    calls = []
+    def counting_loader(d):
+        calls.append(d)
+        return {"alwaysbuy": AlwaysBuy()}
+    el._make_strategy("alwaysbuy", {}, counting_loader)
+    el._make_strategy("alwaysbuy", {}, counting_loader)
+    assert len(calls) == 1                      # loader invoked once, then cached
+    el._strategy_cache.clear()                  # don't leak into other tests

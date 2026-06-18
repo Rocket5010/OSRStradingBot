@@ -13,6 +13,7 @@ from bot.strategies.loader import load_strategies
 
 _OPEN_STATES = ("proposed", "accepted", "filled", "selling")
 _STRATEGIES_DIR = os.path.join(os.path.dirname(__file__), "strategies")
+_strategy_cache = {}
 
 
 def _now_iso():
@@ -20,8 +21,11 @@ def _now_iso():
 
 
 def _make_strategy(name, params, loader):
-    found = loader(_STRATEGIES_DIR)
-    proto = found.get(name)
+    protos = _strategy_cache.get(loader)
+    if protos is None:
+        protos = loader(_STRATEGIES_DIR)
+        _strategy_cache[loader] = protos
+    proto = protos.get(name)
     if proto is None:
         return None
     # rebuild with the run's params if the class supports it
