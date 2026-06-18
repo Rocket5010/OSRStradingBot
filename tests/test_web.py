@@ -138,3 +138,16 @@ def test_appjs_served():
     r = c.get("/app.js")
     assert r.status_code == 200
     assert "refresh" in r.text
+
+
+def test_watchlist_endpoint_reads_config():
+    c = client()
+    c.post("/api/config/watchlist", json={"value": "4151,11802"})
+    r = c.get("/api/watchlist")
+    assert r.status_code == 200
+    assert r.json()["items"] == [4151, 11802]
+
+
+def test_watchlist_empty_default():
+    c = client()
+    assert c.get("/api/watchlist").json()["items"] == []

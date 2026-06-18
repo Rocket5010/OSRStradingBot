@@ -160,6 +160,11 @@ def create_app(conn, strategies_dir=None):
             "goal_progress": (profit_row["s"] / bond_price) if bond_price else 0.0,
         }
 
+    @app.get("/api/watchlist")
+    def get_watchlist():
+        from bot.curator import get_watchlist as _gw
+        return {"items": _gw(conn)}
+
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
