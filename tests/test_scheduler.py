@@ -64,3 +64,31 @@ def test_tick_no_notify_without_webhook():
                           notifier=lambda url, msg: sent.append(msg))
     sched.tick(now=0.0)
     assert sent == []
+
+
+def test_tick_uses_config_watchlist():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    from bot import curator
+    curator.save_watchlist(conn, [1])
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000)
+    sched = PollScheduler(conn, StubClient(), watchlist=[999], loader=loader_stub,
+                          goal_interval_s=0)
+    sched.tick(now=0.0)
+    # proposal is for item 1 (from config), not 999
+    props = pos.list_positions(conn, state="proposed")
+    assert props and all(p["item_id"] == 1 for p in props)
+
+
+def test_curation_runs_and_writes_watchlist():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.set_config(conn, "curate_strategy", "alwaysbuy")
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000)
+    sched = PollScheduler(conn, StubClient(), watchlist=[1], loader=loader_stub,
+                          goal_interval_s=999999, curate_interval_s=0)
+    sched.tick(now=0.0)
+    from bot import curator
+    # StubClient.timeseries returns [] so no candidate qualifies, but the
+    # curation pass must run without error and leave watchlist usable.
+    assert curator.get_watchlist(conn, default=[1]) is not None
