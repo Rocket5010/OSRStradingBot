@@ -12,6 +12,8 @@ from bot.api_client import WikiClient
 from bot.scheduler import PollScheduler
 from bot.web import create_app
 
+_curate_lock = threading.Lock()
+
 DB_PATH = os.environ.get("OSRS_BOT_DB", "osrs_bot.db")
 USER_AGENT = os.environ.get(
     "OSRS_BOT_UA", "osrs-flip-bot/1.0 (contact: set OSRS_BOT_UA)")
@@ -36,11 +38,17 @@ def build():
     scheduler = PollScheduler(sched_conn, client, watchlist=WATCHLIST)
 
     def curate_runner():
+        if not _curate_lock.acquire(blocking=False):
+            return  # a curation is already in progress
         def job():
-            from bot.curate_now import run
             c = db.connect(DB_PATH)
-            db.init_db(c)
-            run(c, WikiClient(user_agent=USER_AGENT))
+            try:
+                db.init_db(c)
+                from bot.curate_now import run
+                run(c, WikiClient(user_agent=USER_AGENT))
+            finally:
+                c.close()
+                _curate_lock.release()
         threading.Thread(target=job, daemon=True).start()
 
     app = create_app(api_conn, curate_runner=curate_runner)

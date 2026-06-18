@@ -24,3 +24,8 @@ def test_config_set_and_get():
     db.set_config(conn, "capital", "42000000")
     assert db.get_config(conn, "capital") == "42000000"
     assert db.get_config(conn, "missing", default="x") == "x"
+
+
+def test_connect_sets_busy_timeout():
+    conn = db.connect(":memory:")
+    assert conn.execute("PRAGMA busy_timeout").fetchone()[0] == 5000

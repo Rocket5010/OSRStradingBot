@@ -49,4 +49,13 @@ def get_watchlist(conn, default=None):
         raw = None
     if not raw:
         return list(default) if default else []
-    return [int(x) for x in raw.split(",") if x.strip()]
+    out = []
+    for token in raw.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        try:
+            out.append(int(token))
+        except ValueError:
+            continue
+    return out

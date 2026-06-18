@@ -76,3 +76,9 @@ def test_save_and_get_watchlist():
 def test_get_watchlist_default_when_unset():
     conn = fresh()
     assert curator.get_watchlist(conn, default=[1, 2]) == [1, 2]
+
+
+def test_get_watchlist_skips_non_numeric():
+    conn = fresh()
+    db.set_config(conn, "watchlist", "4151, ,abc,11802")
+    assert curator.get_watchlist(conn) == [4151, 11802]
