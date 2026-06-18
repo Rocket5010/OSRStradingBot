@@ -24,6 +24,11 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .bar{height:12px;background:var(--panel2);border-radius:6px;overflow:hidden}
 .bar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),#ffe08a)}
 .runs{margin-bottom:20px}
+.settings{margin-bottom:20px}
+.settings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
+.settings-grid label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
+.settings-grid input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px;font-size:13px}
+.settings-actions{display:flex;align-items:center;gap:12px}
 .run-form{display:flex;gap:10px;margin:12px 0}
 .run-form select,.run-form input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px}
 .panels{display:grid;grid-template-columns:1fr 1fr;gap:16px}

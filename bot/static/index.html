@@ -35,6 +35,22 @@
     <div class="bar"><span id="goal-bar"></span></div>
   </section>
 
+  <section class="settings card">
+    <h2>Settings</h2>
+    <div class="settings-grid">
+      <label>Capital (gp)
+        <input id="set-capital" type="number" placeholder="e.g. 50000000"></label>
+      <label>Bond goal (days)
+        <input id="set-bond-days" type="number" placeholder="14"></label>
+      <label>Discord webhook URL
+        <input id="set-webhook" type="text" placeholder="https://discord.com/api/webhooks/…"></label>
+    </div>
+    <div class="settings-actions">
+      <button id="set-save" class="btn accept">Save settings</button>
+      <span id="set-status" class="mut"></span>
+    </div>
+  </section>
+
   <section class="runs card">
     <h2>Strategies</h2>
     <div class="run-form">

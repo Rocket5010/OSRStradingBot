@@ -19,6 +19,28 @@ async function loadStrategies() {
     .map((s) => `<option value="${s.name}">${s.name}</option>`).join("");
 }
 
+async function loadSettings() {
+  const [capital, bondDays, webhook] = await Promise.all([
+    api("/config/capital"), api("/config/bond_days"), api("/config/notify_webhook"),
+  ]);
+  if (capital.value != null) $("set-capital").value = capital.value;
+  if (bondDays.value != null) $("set-bond-days").value = bondDays.value;
+  if (webhook.value != null) $("set-webhook").value = webhook.value;
+}
+
+async function saveSettings() {
+  const entries = [
+    ["capital", $("set-capital").value.trim()],
+    ["bond_days", $("set-bond-days").value.trim()],
+    ["notify_webhook", $("set-webhook").value.trim()],
+  ];
+  for (const [key, value] of entries) {
+    if (value !== "") await api(`/config/${key}`, "POST", { value });
+  }
+  $("set-status").textContent = "saved " + new Date().toLocaleTimeString();
+  refresh();
+}
+
 async function startRun() {
   const strategy = $("run-strategy").value;
   const budget_gp = parseInt($("run-budget").value || "0", 10);
@@ -99,5 +121,8 @@ async function refresh() {
 }
 
 $("run-start").addEventListener("click", startRun);
-loadStrategies().then(refresh);
+$("set-save").addEventListener("click", saveSettings);
+loadStrategies();
+loadSettings();
+refresh();
 setInterval(refresh, 5000);
