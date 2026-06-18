@@ -151,3 +151,21 @@ def test_watchlist_endpoint_reads_config():
 def test_watchlist_empty_default():
     c = client()
     assert c.get("/api/watchlist").json()["items"] == []
+
+
+def test_curate_endpoint_calls_runner():
+    from bot import db
+    from bot.web import create_app
+    from fastapi.testclient import TestClient
+    conn = db.connect(":memory:"); db.init_db(conn)
+    called = []
+    app = create_app(conn, curate_runner=lambda: called.append(True))
+    tc = TestClient(app)
+    r = tc.post("/api/curate")
+    assert r.status_code == 200 and r.json()["status"] == "started"
+    assert called == [True]
+
+
+def test_curate_endpoint_503_when_unconfigured():
+    c = client()   # default client() builds app without curate_runner
+    assert c.post("/api/curate").status_code == 503

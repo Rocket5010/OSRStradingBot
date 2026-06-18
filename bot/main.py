@@ -3,6 +3,7 @@
 serve the FastAPI app. The API and the scheduler use SEPARATE connections."""
 
 import os
+import threading
 
 import uvicorn
 
@@ -34,7 +35,15 @@ def build():
     # WATCHLIST is the fallback until the curator populates config 'watchlist'.
     scheduler = PollScheduler(sched_conn, client, watchlist=WATCHLIST)
 
-    app = create_app(api_conn)
+    def curate_runner():
+        def job():
+            from bot.curate_now import run
+            c = db.connect(DB_PATH)
+            db.init_db(c)
+            run(c, WikiClient(user_agent=USER_AGENT))
+        threading.Thread(target=job, daemon=True).start()
+
+    app = create_app(api_conn, curate_runner=curate_runner)
     return app, scheduler
 
 

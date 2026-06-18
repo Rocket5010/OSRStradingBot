@@ -125,8 +125,19 @@ async function refresh() {
   }
 }
 
+async function curateNow() {
+  $("set-status").textContent = "curating… (this can take minutes)";
+  try {
+    await api("/curate", "POST");
+    $("set-status").textContent = "curation started";
+  } catch (e) {
+    $("set-status").textContent = "curate failed: " + e.message;
+  }
+}
+
 $("run-start").addEventListener("click", startRun);
 $("set-save").addEventListener("click", saveSettings);
+$("set-curate").addEventListener("click", curateNow);
 loadStrategies();
 loadSettings();
 refresh();
