@@ -4,9 +4,11 @@ Rehearse the whole Linux deploy on your own machine before touching the cloud �
 same Ubuntu, same `systemd`, zero bandwidth/cloud risk. Once this works, the
 [[Deploy to Oracle Cloud]] steps are nearly identical. Part of [[Launch]].
 
-> **Easiest option: Multipass.** It spins up a real Ubuntu VM with one command —
-> far less fuss than VirtualBox for someone new to Linux. VirtualBox steps are
-> below as an alternative.
+> **Lightest option: WSL2** (Option C) — real Ubuntu on Windows, one command, no
+> VM to download. Best for learning the flow. **Multipass** (Option A) is the
+> easiest true VM. **VirtualBox** (Option B) is the most cloud-realistic.
+> All three run the *same* install + `systemd` steps; only setup + networking
+> differ.
 
 ---
 
@@ -87,6 +89,57 @@ multipass purge
    identical.
 6. Set `OSRS_BOT_HOST=0.0.0.0` the same way as Multipass step 6, then browse to
    `http://<VM_IP>:8000` from Windows.
+
+---
+
+## Option C — WSL2 (lightest; Linux on Windows)
+
+Real Ubuntu running on Windows with no VM to manage. Best for learning the flow.
+
+1. In **PowerShell (Administrator)**:
+
+```powershell
+wsl --install
+```
+
+   Reboot when asked. Ubuntu finishes setup and prompts for a username +
+   password. (If `wsl --install` says it's already installed, run
+   `wsl --install -d Ubuntu`.)
+
+2. **Turn on systemd** (off by default in WSL). In the Ubuntu terminal:
+
+```bash
+sudo nano /etc/wsl.conf
+```
+
+   Add these lines, then save (Ctrl+O, Enter, Ctrl+X):
+
+```ini
+[boot]
+systemd=true
+```
+
+   Then in **PowerShell**, restart WSL:
+
+```powershell
+wsl --shutdown
+```
+
+   Reopen Ubuntu (Start menu → Ubuntu). Verify systemd is on: `systemctl status`
+   should show a tree, not an error.
+
+3. Install + run the bot — **steps 3 and 4 from [[Deploy to Oracle Cloud]]**,
+   identical.
+
+4. **Dashboard:** set `OSRS_BOT_HOST=0.0.0.0` the same way as Option A step 6
+   (`sudo systemctl edit osrsbot`), restart, then just open
+   **`http://localhost:8000`** in your Windows browser — WSL2 forwards localhost
+   automatically, no IP lookup needed.
+
+> **Caveat:** WSL2 runs only while Windows is on and WSL has been started; it
+> does **not** auto-start at boot by default. Great for practice and as a local
+> host while your PC is on — but not a 24/7 replacement. For always-on, use the
+> [[Deploy to Oracle Cloud|Oracle VM]].
 
 ---
 
