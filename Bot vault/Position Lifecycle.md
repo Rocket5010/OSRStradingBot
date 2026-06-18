@@ -20,5 +20,13 @@ The user drives transitions via dashboard buttons ([[Constraints|bot = brain, us
 - **cancelled** — order withdrawn (didn't fill)
 - **dismissed** — user rejected the proposal
 
+## Auto-expiry of stale proposals
+Each evaluation pass the live engine re-checks every `proposed` position: it asks
+the strategy whether it still wants that item at the current market (via
+`find_buys` with an unbounded budget so only the signal criteria matter). If the
+signal is gone — price moved, indicator flipped — the proposal is auto-`dismissed`
+so the buy list never shows opportunities that are no longer worth it. Proposals
+for items with no fresh market data are left untouched.
+
 ## Why cancel/withdraw exists
 GE orders don't always fill. The user can withdraw an unfilled buy or sell.
