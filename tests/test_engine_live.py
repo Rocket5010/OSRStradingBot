@@ -130,3 +130,49 @@ def test_new_position_gets_fresh_sell_signal():
     evaluate(conn, {1: market(1, 180, 220)}, now=0.0, loader=loader_stub)
     sigs = conn.execute("SELECT * FROM signals WHERE type='sell'").fetchall()
     assert len(sigs) == 2  # one per position, not blocked by the old signal
+
+
+class BuysOnlyItem2:
+    """Only ever wants item 2; never item 1."""
+    name = "onlytwo"
+    def __init__(self, **p): self.params = p
+    def find_buys(self, markets, budget):
+        out = []
+        for m in markets:
+            if m.item_id == 2 and budget >= m.low:
+                out.append(BuySignal(item_id=2, price=m.low, qty=1, reason="x"))
+        return out
+    def should_sell(self, position, market):
+        return SellDecision(sell=False, reason="")
+
+
+def onlytwo_loader(_dir):
+    return {"onlytwo": BuysOnlyItem2()}
+
+
+def test_stale_proposal_is_dismissed():
+    conn = fresh()
+    rid = runs.start_run(conn, "onlytwo", budget_gp=10_000)
+    # a proposed buy for item 1, which the strategy no longer wants
+    pid = pos.create_proposed(conn, strategy="onlytwo", item_id=1, item_name="i1",
+                              buy_price=100, qty=1, run_id=rid)
+    evaluate(conn, {1: market(1, 100, 150)}, now=0.0, loader=onlytwo_loader)
+    assert pos.get(conn, pid)["state"] == "dismissed"
+
+
+def test_valid_proposal_is_kept():
+    conn = fresh()
+    rid = runs.start_run(conn, "onlytwo", budget_gp=10_000)
+    pid = pos.create_proposed(conn, strategy="onlytwo", item_id=2, item_name="i2",
+                              buy_price=100, qty=1, run_id=rid)
+    evaluate(conn, {2: market(2, 100, 150)}, now=0.0, loader=onlytwo_loader)
+    assert pos.get(conn, pid)["state"] == "proposed"
+
+
+def test_proposal_without_market_data_is_kept():
+    conn = fresh()
+    rid = runs.start_run(conn, "onlytwo", budget_gp=10_000)
+    pid = pos.create_proposed(conn, strategy="onlytwo", item_id=1, item_name="i1",
+                              buy_price=100, qty=1, run_id=rid)
+    evaluate(conn, {}, now=0.0, loader=onlytwo_loader)   # no market data at all
+    assert pos.get(conn, pid)["state"] == "proposed"

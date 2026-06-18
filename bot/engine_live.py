@@ -72,6 +72,21 @@ def evaluate(conn, markets, now, loader=load_strategies):
                 run_id=run["id"])
             spent_this_pass += cost
 
+    # --- prune stale proposals ---
+    for p in pos_mod.list_positions(conn, state="proposed"):
+        m = markets.get(p["item_id"])
+        if m is None:
+            continue  # no fresh data — leave untouched
+        run = runs_mod.get_run(conn, p["run_id"]) if p["run_id"] else None
+        sparams = json.loads(run["params_json"]) if run and run["params_json"] else {}
+        strat = _make_strategy(p["strategy"], sparams, loader)
+        if strat is None:
+            continue
+        signals = strat.find_buys([m], 10**15)
+        still_wanted = any(s.item_id == p["item_id"] for s in signals)
+        if not still_wanted:
+            pos_mod.dismiss(conn, p["id"])
+
     # --- sell recommendations, per filled position (one signal per position) ---
     for p in pos_mod.list_positions(conn, state="filled"):
         m = markets.get(p["item_id"])
