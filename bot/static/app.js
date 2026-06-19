@@ -111,14 +111,27 @@ function renderOverview(o) {
   $("goal-text").textContent = `${fmt(o.period_profit)} / ${fmt(o.bond_price)}`;
 }
 
+function renderCurateStatus(cs) {
+  if (cs.running) {
+    $("set-status").textContent =
+      `curating… ${cs.done}/${cs.total}`;
+  } else if (cs.last_error) {
+    $("set-status").textContent = "curation failed: " + cs.last_error;
+  } else if (cs.last_count != null) {
+    $("set-status").textContent =
+      `last curation: ${cs.last_count} items selected`;
+  }
+}
+
 async function refresh() {
   try {
-    const [overview, runs, positions] = await Promise.all([
-      api("/overview"), api("/runs"), api("/positions"),
+    const [overview, runs, positions, curate] = await Promise.all([
+      api("/overview"), api("/runs"), api("/positions"), api("/curate/status"),
     ]);
     renderOverview(overview);
     renderRuns(runs);
     renderPositions(positions);
+    renderCurateStatus(curate);
     $("status-text").textContent = "live · updated " + new Date().toLocaleTimeString();
   } catch (e) {
     $("status-text").textContent = "disconnected";

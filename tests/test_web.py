@@ -217,3 +217,21 @@ def test_create_position_rejects_nonpositive():
     r = c.post("/api/positions", json={"strategy": "rsi", "item_id": 2,
                "item_name": "Cb", "buy_price": 0, "qty": 10})
     assert r.status_code == 422
+
+
+def test_curate_status_default_idle():
+    c = client()
+    s = c.get("/api/curate/status").json()
+    assert s["running"] is False
+
+
+def test_curate_status_reflects_injected():
+    from bot import db
+    from bot.web import create_app
+    from bot.curation_status import CurationStatus
+    from fastapi.testclient import TestClient
+    conn = db.connect(":memory:"); db.init_db(conn)
+    st = CurationStatus(); st.start(total=5); st.progress(2, 5)
+    tc = TestClient(create_app(conn, curation_status=st))
+    s = tc.get("/api/curate/status").json()
+    assert s["running"] is True and s["done"] == 2 and s["total"] == 5

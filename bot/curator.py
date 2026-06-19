@@ -2,8 +2,12 @@
 """Periodically screen the market and backtest candidates to build the
 investing watchlist. Reuses the Phase 3 backtest engine."""
 
+import logging
+
 from bot import db
 from bot.backtest.engine import run_backtest
+
+log = logging.getLogger("bot.curator")
 
 
 def screen_candidates(conn, min_vol=100, min_price=1, max_price=None, cap=200):
@@ -20,22 +24,26 @@ def screen_candidates(conn, min_vol=100, min_price=1, max_price=None, cap=200):
 
 
 def curate(conn, client, strategy_factory, candidate_ids, budget,
-           top_n=50, timestep="24h", min_candles=30, max_drawdown=0.4):
+           top_n=50, timestep="24h", min_candles=30, max_drawdown=0.4,
+           on_progress=None):
     """Backtest each candidate; return the top_n item ids by profit.
     strategy_factory is a zero-arg callable returning a fresh Strategy."""
+    log.info("curation: backtesting %d candidates", len(candidate_ids))
     scored = []
-    for item_id in candidate_ids:
+    total = len(candidate_ids)
+    for i, item_id in enumerate(candidate_ids, start=1):
         candles = client.timeseries(item_id, timestep)
-        if len(candles) < min_candles:
-            continue
-        result = run_backtest(strategy_factory(), candles, budget, item_id=item_id)
-        if result.n_trades == 0 or result.max_drawdown > max_drawdown:
-            continue
-        if result.total_profit <= 0:
-            continue
-        scored.append((item_id, result.total_profit, result.hit_rate))
+        if len(candles) >= min_candles:
+            result = run_backtest(strategy_factory(), candles, budget, item_id=item_id)
+            if (result.n_trades > 0 and result.max_drawdown <= max_drawdown
+                    and result.total_profit > 0):
+                scored.append((item_id, result.total_profit, result.hit_rate))
+        if on_progress is not None:
+            on_progress(i, total)
     scored.sort(key=lambda x: (x[1], x[2]), reverse=True)
-    return [item_id for item_id, _, _ in scored[:top_n]]
+    picks = [item_id for item_id, _, _ in scored[:top_n]]
+    log.info("curation: done, picked %d items", len(picks))
+    return picks
 
 
 def save_watchlist(conn, item_ids):

@@ -47,7 +47,9 @@ class SellBody(BaseModel):
     sell_price: int = Field(gt=0)
 
 
-def create_app(conn, strategies_dir=None, curate_runner=None):
+def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=None):
+    from bot.curation_status import CurationStatus
+    status = curation_status or CurationStatus()
     app = FastAPI(title="OSRS Flip Bot")
     sdir = os.path.abspath(
         strategies_dir or os.path.join(os.path.dirname(__file__), "strategies"))
@@ -176,6 +178,10 @@ def create_app(conn, strategies_dir=None, curate_runner=None):
             raise HTTPException(status_code=503, detail="curation not available")
         curate_runner()
         return {"status": "started"}
+
+    @app.get("/api/curate/status")
+    def curate_status():
+        return status.snapshot()
 
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

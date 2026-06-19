@@ -9,6 +9,7 @@ import uvicorn
 
 from bot import db
 from bot.api_client import WikiClient
+from bot.curation_status import CurationStatus
 from bot.scheduler import PollScheduler
 from bot.web import create_app
 
@@ -30,6 +31,7 @@ def build():
     api_conn = db.connect(DB_PATH)
     db.init_db(api_conn)
     client = WikiClient(user_agent=USER_AGENT)
+    curation_status = CurationStatus()
 
     sched_conn = db.connect(DB_PATH)   # separate connection for the thread
     # scheduler also refreshes the bond goal daily and sends webhook
@@ -43,16 +45,20 @@ def build():
             return  # a curation is already in progress
         def job():
             c = db.connect(DB_PATH)
+            curation_status.start()
             try:
                 db.init_db(c)
                 from bot.curate_now import run
-                run(c, client)   # shared thread-safe client keeps the rate limit global
+                picks = run(c, client, on_progress=curation_status.progress)
+                curation_status.finish(len(picks))
+            except Exception as e:
+                curation_status.fail(e)
             finally:
                 c.close()
                 _curate_lock.release()
         threading.Thread(target=job, daemon=True).start()
 
-    app = create_app(api_conn, curate_runner=curate_runner)
+    app = create_app(api_conn, curate_runner=curate_runner, curation_status=curation_status)
     return app, scheduler
 
 

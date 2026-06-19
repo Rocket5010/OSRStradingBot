@@ -10,7 +10,8 @@ from bot.poller import poll_once
 from bot.strategies.loader import load_strategies
 
 
-def run(conn, client, strategies_dir=None, cap=None, budget=None, min_candles=30):
+def run(conn, client, strategies_dir=None, cap=None, budget=None, min_candles=30,
+        on_progress=None):
     """Poll, screen, curate, save. Returns the chosen item ids."""
     strategies_dir = strategies_dir or os.path.join(
         os.path.dirname(__file__), "strategies")
@@ -24,7 +25,7 @@ def run(conn, client, strategies_dir=None, cap=None, budget=None, min_candles=30
     budget = budget or int(db.get_config(conn, "curate_budget") or "10000000")
     candidates = curator.screen_candidates(conn, cap=cap)
     picks = curator.curate(conn, client, factory, candidates, budget,
-                           min_candles=min_candles)
+                           min_candles=min_candles, on_progress=on_progress)
     curator.save_watchlist(conn, picks)
     return picks
 

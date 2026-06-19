@@ -82,3 +82,12 @@ def test_get_watchlist_skips_non_numeric():
     conn = fresh()
     db.set_config(conn, "watchlist", "4151, ,abc,11802")
     assert curator.get_watchlist(conn) == [4151, 11802]
+
+
+def test_curate_reports_progress():
+    conn = fresh()
+    seen = []
+    curator.curate(conn, StubClient(), WinOnItem2, candidate_ids=[1, 2, 3],
+                   budget=1000, top_n=2, min_candles=2,
+                   on_progress=lambda d, t: seen.append((d, t)))
+    assert seen[-1] == (3, 3)        # progressed through all candidates
