@@ -35,7 +35,8 @@ def build():
     # scheduler also refreshes the bond goal daily and sends webhook
     # notifications when config key 'notify_webhook' is set.
     # WATCHLIST is the fallback until the curator populates config 'watchlist'.
-    scheduler = PollScheduler(sched_conn, client, watchlist=WATCHLIST)
+    scheduler = PollScheduler(sched_conn, client, watchlist=WATCHLIST,
+                              db_path=DB_PATH)
 
     def curate_runner():
         if not _curate_lock.acquire(blocking=False):

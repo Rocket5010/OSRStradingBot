@@ -16,7 +16,7 @@ class PollScheduler:
     def __init__(self, conn, client, watchlist, interval_s=300,
                  timestep="24h", loader=load_strategies,
                  notifier=None, goal_interval_s=86400,
-                 curate_interval_s=604800):
+                 curate_interval_s=604800, db_path=None):
         self.conn = conn
         self.client = client
         self.watchlist = watchlist
@@ -27,6 +27,11 @@ class PollScheduler:
         self.notifier = notifier or _notify.notify
         self.goal_interval_s = goal_interval_s
         self.curate_interval_s = curate_interval_s
+        # If set, periodic curation runs in its OWN thread + connection so a slow
+        # network curation can't stall the poll loop. Without it (tests), curation
+        # runs inline on self.conn.
+        self.db_path = db_path
+        self._curate_lock = threading.Lock()
         self.default_watchlist = watchlist
         self._last_curate = None
         self._last_goal = None
@@ -61,10 +66,7 @@ class PollScheduler:
 
         # periodic watchlist curation (slow cadence)
         if self._last_curate is None or (now - self._last_curate) >= self.curate_interval_s:
-            try:
-                self._curate(now)
-            except Exception:
-                log.exception("curation failed")
+            self._start_curation()
             self._last_curate = now
 
         from bot.curator import get_watchlist
@@ -99,18 +101,48 @@ class PollScheduler:
                     except Exception:
                         log.warning("notification failed", exc_info=True)
 
-    def _curate(self, now):
+    def _start_curation(self):
+        """Run a curation pass. Threaded with its own connection when db_path is
+        set; inline on self.conn otherwise (tests). Never overlaps itself."""
+        if not self._curate_lock.acquire(blocking=False):
+            return  # a curation is already running
+        if self.db_path is None:
+            try:
+                self._curate(self.conn)
+            except Exception:
+                log.exception("curation failed")
+            finally:
+                self._curate_lock.release()
+            return
+
+        def job():
+            from bot import db as _db
+            c = None
+            try:
+                c = _db.connect(self.db_path)
+                _db.init_db(c)
+                self._curate(c)
+            except Exception:
+                log.exception("curation failed")
+            finally:
+                if c is not None:
+                    c.close()
+                self._curate_lock.release()
+
+        threading.Thread(target=job, daemon=True).start()
+
+    def _curate(self, conn):
         from bot import db, curator
-        strat_name = db.get_config(self.conn, "curate_strategy") or "mean_reversion"
+        strat_name = db.get_config(conn, "curate_strategy") or "mean_reversion"
         found = self.loader(self._strategies_dir())
         if strat_name not in found:
             return
         factory = type(found[strat_name])
-        candidates = curator.screen_candidates(self.conn)
-        budget = int(db.get_config(self.conn, "curate_budget") or "10000000")
-        picks = curator.curate(self.conn, self.client, factory, candidates, budget)
+        candidates = curator.screen_candidates(conn)
+        budget = int(db.get_config(conn, "curate_budget") or "10000000")
+        picks = curator.curate(conn, self.client, factory, candidates, budget)
         if picks:
-            curator.save_watchlist(self.conn, picks)
+            curator.save_watchlist(conn, picks)
 
     def _strategies_dir(self):
         import os
