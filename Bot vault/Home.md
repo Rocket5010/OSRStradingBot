@@ -31,6 +31,11 @@ Map of Content (MOC). Start here. Open the **graph view** to see how everything 
 ## 🛡️ Quality
 - [[Audit and Hardening]] — full code audit + fixes (156 tests)
 
+## 🚀 Running & updating
+- [[Launch]] — start the bot (local + cloud)
+- [[Updating the Bot]] — pull the latest from GitHub
+- [[Deploy to Oracle Cloud]] · [[Practice in a Local VM]]
+
 ## 🚧 Building it
 - [[Build Phases]] — phased plan, MVP = phases 1–3
 - [[Launch]] — CMD-free start

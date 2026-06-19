@@ -144,10 +144,25 @@ depth, so fills are assumed (conservatively).
 
 ---
 
+## Updating
+
+Pull the latest after the repo changes — **stop → pull → reinstall → restart**:
+
+```bash
+# stop the running bot first (it locks the DB on Windows)
+git pull
+pip install -r requirements.txt
+# restart (start-bot.bat or: python -m bot.main)
+```
+
+Your `osrs_bot.db` is migrated automatically on start (new columns added in
+place), so logged positions and settings survive. Full per-platform steps:
+`Bot vault/Updating the Bot.md`.
+
 ## Tests
 
 ```bash
-python -m pytest        # 131 tests
+python -m pytest
 ```
 
 ---
