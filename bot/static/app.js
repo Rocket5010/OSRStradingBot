@@ -111,6 +111,8 @@ function renderOverview(o) {
   $("goal-text").textContent = `${fmt(o.period_profit)} / ${fmt(o.bond_price)}`;
 }
 
+let _lastCurateFinished = null;
+
 function renderCurateStatus(cs) {
   if (cs.running) {
     $("set-status").textContent =
@@ -120,6 +122,12 @@ function renderCurateStatus(cs) {
   } else if (cs.last_count != null) {
     $("set-status").textContent =
       `last curation: ${cs.last_count} items selected`;
+  }
+  // When a curation completes, reload the watchlist field once so the new
+  // auto-populated list shows without a page reload.
+  if (!cs.running && cs.last_finished && cs.last_finished !== _lastCurateFinished) {
+    _lastCurateFinished = cs.last_finished;
+    loadSettings();
   }
 }
 

@@ -28,7 +28,11 @@ def run(conn, client, strategies_dir=None, cap=None, budget=None, min_candles=30
     candidates = curator.screen_candidates(conn, cap=cap)
     picks = curator.curate(conn, client, factory, candidates, budget,
                            min_candles=min_candles, on_progress=on_progress)
-    curator.save_watchlist(conn, picks)
+    # Only overwrite the watchlist when curation actually found something —
+    # an empty result must not wipe a previously good watchlist (matches the
+    # scheduler's behavior).
+    if picks:
+        curator.save_watchlist(conn, picks)
     return picks
 
 

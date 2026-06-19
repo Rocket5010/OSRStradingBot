@@ -54,3 +54,24 @@ def test_run_raises_valueerror_on_unknown_strategy(monkeypatch):
     db.set_config(conn, "curate_strategy", "nope")
     with pytest.raises(ValueError):
         cn.run(conn, StubClient())
+
+
+class NeverBuy:
+    name = "neverbuy"
+    def __init__(self, **p): pass
+    def find_buys(self, markets, budget):
+        return []
+    def should_sell(self, position, market):
+        return SellDecision(sell=False, reason="")
+
+
+def test_run_keeps_watchlist_when_no_picks(monkeypatch):
+    import bot.curate_now as cn
+    monkeypatch.setattr(cn, "load_strategies", lambda d: {"neverbuy": NeverBuy()})
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.set_config(conn, "curate_strategy", "neverbuy")
+    curator.save_watchlist(conn, [111, 222])      # existing good watchlist
+    picks = run(conn, StubClient(), min_candles=1)
+    assert picks == []
+    assert curator.get_watchlist(conn) == [111, 222]   # not wiped
