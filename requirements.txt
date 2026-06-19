@@ -1,3 +1,6 @@
-fastapi
-uvicorn
-httpx
+# Runtime + test dependencies. Version-bounded for reproducible installs.
+# The bot code itself uses only the Python stdlib; these cover the web layer
+# (fastapi/uvicorn) and the test client (httpx).
+fastapi>=0.137,<1.0
+uvicorn>=0.49,<1.0
+httpx>=0.28,<1.0
