@@ -54,8 +54,30 @@ def connect(path):
     return conn
 
 
+# Columns added after the initial release. For databases created before those
+# columns existed, init_db adds them so `git pull` + restart upgrades in place
+# without losing logged positions/config. (CREATE TABLE IF NOT EXISTS does not
+# alter existing tables, so we migrate explicitly.)
+_MIGRATIONS = {
+    "positions": [("high_water", "INTEGER"), ("ref_price", "INTEGER")],
+    "signals": [("position_id", "INTEGER")],
+}
+
+
+def _migrate(conn):
+    for table, cols in _MIGRATIONS.items():
+        existing = {r["name"]
+                    for r in conn.execute(f"PRAGMA table_info({table})")}
+        if not existing:
+            continue  # table doesn't exist yet; SCHEMA already created it
+        for name, decl in cols:
+            if name not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+
+
 def init_db(conn):
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.commit()
 
 

@@ -29,3 +29,25 @@ def test_config_set_and_get():
 def test_connect_sets_busy_timeout():
     conn = db.connect(":memory:")
     assert conn.execute("PRAGMA busy_timeout").fetchone()[0] == 5000
+
+
+def test_init_db_migrates_missing_columns():
+    # simulate an OLD database created before high_water/ref_price/position_id
+    conn = db.connect(":memory:")
+    conn.execute("CREATE TABLE positions (id INTEGER PRIMARY KEY, item_id INTEGER, "
+                 "item_name TEXT, strategy TEXT, state TEXT, buy_price INTEGER, qty INTEGER)")
+    conn.execute("CREATE TABLE signals (id INTEGER PRIMARY KEY, item_id INTEGER, strategy TEXT)")
+    conn.commit()
+    db.init_db(conn)   # should add the new columns, not crash
+    pcols = {r["name"] for r in conn.execute("PRAGMA table_info(positions)")}
+    scols = {r["name"] for r in conn.execute("PRAGMA table_info(signals)")}
+    assert {"high_water", "ref_price"} <= pcols
+    assert "position_id" in scols
+
+
+def test_init_db_migration_is_idempotent():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.init_db(conn)   # running twice must not error (columns already present)
+    pcols = {r["name"] for r in conn.execute("PRAGMA table_info(positions)")}
+    assert "high_water" in pcols
