@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from bot import db as db_mod
 from bot import runs as runs_mod
@@ -24,7 +24,7 @@ def _row(r):
 
 class StartRunBody(BaseModel):
     strategy: str
-    budget_gp: int
+    budget_gp: int = Field(gt=0)
     params: dict = {}
 
 
@@ -34,17 +34,17 @@ class ConfigBody(BaseModel):
 
 class CreatePositionBody(BaseModel):
     strategy: str
-    item_id: int
+    item_id: int = Field(gt=0)
     item_name: str
-    buy_price: int
-    qty: int
+    buy_price: int = Field(gt=0)
+    qty: int = Field(gt=0)
     run_id: int | None = None
     sell_target: int | None = None
     stop_loss: int | None = None
 
 
 class SellBody(BaseModel):
-    sell_price: int
+    sell_price: int = Field(gt=0)
 
 
 def create_app(conn, strategies_dir=None, curate_runner=None):

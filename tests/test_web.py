@@ -193,3 +193,27 @@ def test_overview_period_profit_counts_with_goal_period():
            json={"value": "2000-01-01T00:00:00+00:00"})
     _sell_one(c)
     assert c.get("/api/overview").json()["period_profit"] == 180
+
+
+def test_start_run_rejects_nonpositive_budget():
+    c = client()
+    assert c.post("/api/runs", json={"strategy": "rsi", "budget_gp": 0}).status_code == 422
+    assert c.post("/api/runs", json={"strategy": "rsi", "budget_gp": -5}).status_code == 422
+
+
+def test_sold_rejects_nonpositive_price():
+    c = client()
+    p = c.post("/api/positions", json={"strategy": "rsi", "item_id": 2,
+               "item_name": "Cb", "buy_price": 100, "qty": 10}).json()
+    pid = p["id"]
+    c.post(f"/api/positions/{pid}/accept")
+    c.post(f"/api/positions/{pid}/fill")
+    c.post(f"/api/positions/{pid}/sell")
+    assert c.post(f"/api/positions/{pid}/sold", json={"sell_price": -1}).status_code == 422
+
+
+def test_create_position_rejects_nonpositive():
+    c = client()
+    r = c.post("/api/positions", json={"strategy": "rsi", "item_id": 2,
+               "item_name": "Cb", "buy_price": 0, "qty": 10})
+    assert r.status_code == 422
