@@ -170,7 +170,9 @@ def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=No
     @app.get("/api/watchlist")
     def get_watchlist():
         from bot.curator import get_watchlist as _gw
-        return {"items": _gw(conn)}
+        names = db_mod.get_item_names(conn)
+        return {"items": [{"id": i, "name": names.get(i, str(i))}
+                          for i in _gw(conn)]}
 
     @app.post("/api/curate")
     def curate_now_trigger():

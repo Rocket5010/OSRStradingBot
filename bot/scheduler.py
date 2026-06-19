@@ -44,6 +44,8 @@ class PollScheduler:
         from bot.market import HistoryCache
         if self._mapping is None:
             self._mapping = {str(m["id"]): m for m in self.client.mapping()}
+            from bot import db as _db
+            _db.save_item_names(self.conn, self._mapping)
         if self._history is None:
             self._history = HistoryCache(self.client, timestep=self.timestep)
 

@@ -8,7 +8,7 @@ def test_init_creates_all_tables():
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
     ).fetchall()
     names = {r["name"] for r in rows}
-    assert names == {"positions", "signals", "strategy_runs", "config", "price_cache"}
+    assert names == {"positions", "signals", "strategy_runs", "config", "price_cache", "item_meta"}
 
 
 def test_init_is_idempotent():
@@ -51,6 +51,17 @@ def test_init_db_migration_is_idempotent():
     db.init_db(conn)   # running twice must not error (columns already present)
     pcols = {r["name"] for r in conn.execute("PRAGMA table_info(positions)")}
     assert "high_water" in pcols
+
+
+def test_save_and_get_item_names():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.save_item_names(conn, {"4151": {"name": "Abyssal whip"},
+                              "1515": {"name": "Yew logs"}})
+    names = db.get_item_names(conn)
+    assert names[4151] == "Abyssal whip" and names[1515] == "Yew logs"
+    db.save_item_names(conn, {"4151": {"name": "Whip"}})
+    assert db.get_item_names(conn)[4151] == "Whip"
 
 
 def test_reset_state_clears_trading_keeps_settings():

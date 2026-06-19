@@ -28,6 +28,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .settings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
 .settings-grid label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
 .settings-grid input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px;font-size:13px}
+.settings-grid textarea{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px;font-size:12px;font-family:monospace;resize:vertical}
 .settings-actions{display:flex;align-items:center;gap:12px}
 .run-form{display:flex;gap:10px;margin:12px 0}
 .run-form select,.run-form input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px}

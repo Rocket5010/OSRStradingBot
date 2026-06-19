@@ -20,14 +20,13 @@ async function loadStrategies() {
 }
 
 async function loadSettings() {
-  const [capital, bondDays, webhook, watchlist, curateDays] = await Promise.all([
+  const [capital, bondDays, webhook, curateDays] = await Promise.all([
     api("/config/capital"), api("/config/bond_days"), api("/config/notify_webhook"),
-    api("/config/watchlist"), api("/config/curate_interval_days"),
+    api("/config/curate_interval_days"),
   ]);
   if (capital.value != null) $("set-capital").value = capital.value;
   if (bondDays.value != null) $("set-bond-days").value = bondDays.value;
   if (webhook.value != null) $("set-webhook").value = webhook.value;
-  if (watchlist.value != null) $("set-watchlist").value = watchlist.value;
   if (curateDays.value != null) $("set-curate-days").value = curateDays.value;
 }
 
@@ -36,7 +35,6 @@ async function saveSettings() {
     ["capital", $("set-capital").value.trim()],
     ["bond_days", $("set-bond-days").value.trim()],
     ["notify_webhook", $("set-webhook").value.trim()],
-    ["watchlist", $("set-watchlist").value.trim()],
     ["curate_interval_days", $("set-curate-days").value.trim()],
   ];
   for (const [key, value] of entries) {
@@ -131,15 +129,25 @@ function renderCurateStatus(cs) {
   }
 }
 
+function renderWatchlist(items) {
+  const view = $("watchlist-view");
+  if (!view) return;
+  view.value = items.length
+    ? items.map((it) => `${it.id}  ${it.name}`).join("\n")
+    : "";
+}
+
 async function refresh() {
   try {
-    const [overview, runs, positions, curate] = await Promise.all([
-      api("/overview"), api("/runs"), api("/positions"), api("/curate/status"),
+    const [overview, runs, positions, curate, watchlist] = await Promise.all([
+      api("/overview"), api("/runs"), api("/positions"),
+      api("/curate/status"), api("/watchlist"),
     ]);
     renderOverview(overview);
     renderRuns(runs);
     renderPositions(positions);
     renderCurateStatus(curate);
+    renderWatchlist(watchlist.items);
     $("status-text").textContent = "live · updated " + new Date().toLocaleTimeString();
   } catch (e) {
     $("status-text").textContent = "disconnected";

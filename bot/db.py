@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS price_cache (
     item_id INTEGER PRIMARY KEY,
     low INTEGER, high INTEGER, vol_1h INTEGER, ts TEXT
 );
+CREATE TABLE IF NOT EXISTS item_meta (
+    item_id INTEGER PRIMARY KEY,
+    name TEXT
+);
 """
 
 
@@ -93,6 +97,23 @@ def set_config(conn, key, value):
 def get_config(conn, key, default=None):
     row = conn.execute("SELECT value FROM config WHERE key=?", (key,)).fetchone()
     return row["value"] if row else default
+
+
+def save_item_names(conn, mapping):
+    """Persist item_id -> name from a mapping dict {id: {"name": ...}}."""
+    rows = []
+    for key, meta in mapping.items():
+        name = meta.get("name") if isinstance(meta, dict) else None
+        rows.append((int(key), name))
+    conn.executemany(
+        "INSERT INTO item_meta(item_id, name) VALUES(?, ?) "
+        "ON CONFLICT(item_id) DO UPDATE SET name=excluded.name", rows)
+    conn.commit()
+
+
+def get_item_names(conn):
+    return {r["item_id"]: r["name"]
+            for r in conn.execute("SELECT item_id, name FROM item_meta")}
 
 
 def reset_state(conn):

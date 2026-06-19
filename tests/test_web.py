@@ -145,12 +145,23 @@ def test_watchlist_endpoint_reads_config():
     c.post("/api/config/watchlist", json={"value": "4151,11802"})
     r = c.get("/api/watchlist")
     assert r.status_code == 200
-    assert r.json()["items"] == [4151, 11802]
+    assert r.json()["items"] == [{"id": 4151, "name": "4151"}, {"id": 11802, "name": "11802"}]
 
 
 def test_watchlist_empty_default():
     c = client()
     assert c.get("/api/watchlist").json()["items"] == []
+
+
+def test_watchlist_includes_names_when_known():
+    from bot import db
+    from bot.web import create_app
+    from fastapi.testclient import TestClient
+    conn = db.connect(":memory:"); db.init_db(conn)
+    db.set_config(conn, "watchlist", "4151")
+    db.save_item_names(conn, {"4151": {"name": "Abyssal whip"}})
+    tc = TestClient(create_app(conn))
+    assert tc.get("/api/watchlist").json()["items"] == [{"id": 4151, "name": "Abyssal whip"}]
 
 
 def test_curate_endpoint_calls_runner():
