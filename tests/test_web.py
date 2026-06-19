@@ -169,3 +169,27 @@ def test_curate_endpoint_calls_runner():
 def test_curate_endpoint_503_when_unconfigured():
     c = client()   # default client() builds app without curate_runner
     assert c.post("/api/curate").status_code == 503
+
+
+def _sell_one(c, sell_price=120):
+    p = c.post("/api/positions", json={"strategy": "rsi", "item_id": 2,
+               "item_name": "Cb", "buy_price": 100, "qty": 10}).json()
+    pid = p["id"]
+    c.post(f"/api/positions/{pid}/accept")
+    c.post(f"/api/positions/{pid}/fill")
+    c.post(f"/api/positions/{pid}/sell")
+    c.post(f"/api/positions/{pid}/sold", json={"sell_price": sell_price})
+
+
+def test_overview_period_profit_zero_without_goal_period():
+    c = client()
+    _sell_one(c)
+    assert c.get("/api/overview").json()["period_profit"] == 0
+
+
+def test_overview_period_profit_counts_with_goal_period():
+    c = client()
+    c.post("/api/config/goal_period_start",
+           json={"value": "2000-01-01T00:00:00+00:00"})
+    _sell_one(c)
+    assert c.get("/api/overview").json()["period_profit"] == 180

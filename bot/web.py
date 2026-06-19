@@ -144,20 +144,25 @@ def create_app(conn, strategies_dir=None, curate_runner=None):
         open_count = conn.execute(
             f"SELECT COUNT(*) AS c FROM positions WHERE state IN "
             f"({','.join('?' * len(_OPEN))})", _OPEN).fetchone()["c"]
-        period_start = db_mod.get_config(conn, "goal_period_start") or ""
-        profit_row = conn.execute(
-            "SELECT COALESCE(SUM(realized_pl), 0) AS s FROM positions "
-            "WHERE state='sold' AND closed_at >= ?", (period_start,)).fetchone()
+        # No goal period started yet -> 0 profit (don't count all-time history).
+        period_start = db_mod.get_config(conn, "goal_period_start")
+        if period_start:
+            profit_row = conn.execute(
+                "SELECT COALESCE(SUM(realized_pl), 0) AS s FROM positions "
+                "WHERE state='sold' AND closed_at >= ?", (period_start,)).fetchone()
+            period_profit = profit_row["s"]
+        else:
+            period_profit = 0
         bond_price = cfg_int("bond_price", 0)
         return {
             "capital": capital,
             "committed": committed,
             "free": capital - committed,
             "open_positions": open_count,
-            "period_profit": profit_row["s"],
+            "period_profit": period_profit,
             "bond_price": bond_price,
             "bond_days": cfg_int("bond_days", 14),
-            "goal_progress": (profit_row["s"] / bond_price) if bond_price else 0.0,
+            "goal_progress": (period_profit / bond_price) if bond_price else 0.0,
         }
 
     @app.get("/api/watchlist")
