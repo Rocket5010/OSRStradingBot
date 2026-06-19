@@ -23,3 +23,6 @@ Bot vault/.obsidian/workspace.json
 osrs_bot.db*
 *.db-wal
 *.db-shm
+
+# launcher log
+bot.log
