@@ -18,7 +18,9 @@ def run(conn, client, strategies_dir=None, cap=None, budget=None, min_candles=30
     strat_name = db.get_config(conn, "curate_strategy") or "mean_reversion"
     found = load_strategies(strategies_dir)
     if strat_name not in found:
-        raise SystemExit(f"unknown curate_strategy '{strat_name}'")
+        # ValueError (not SystemExit) so the threaded curate_runner's
+        # `except Exception` catches it and records the failure in the status.
+        raise ValueError(f"unknown curate_strategy '{strat_name}'")
     factory = type(found[strat_name])
     poll_once(client, conn)
     cap = cap or int(os.environ.get("CURATE_CAP", "100"))

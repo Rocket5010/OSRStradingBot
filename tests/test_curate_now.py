@@ -43,3 +43,14 @@ def test_run_polls_screens_and_saves(monkeypatch):
     picks = run(conn, StubClient(), cap=50, budget=1000, min_candles=2)
     assert 2 in picks                      # profitable item curated in
     assert curator.get_watchlist(conn) == picks   # saved to config
+
+
+def test_run_raises_valueerror_on_unknown_strategy(monkeypatch):
+    import bot.curate_now as cn
+    import pytest
+    monkeypatch.setattr(cn, "load_strategies", lambda d: {})  # no strategies
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.set_config(conn, "curate_strategy", "nope")
+    with pytest.raises(ValueError):
+        cn.run(conn, StubClient())
