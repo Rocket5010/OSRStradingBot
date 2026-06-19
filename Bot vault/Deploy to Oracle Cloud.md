@@ -82,7 +82,11 @@ Create a service file:
 sudo nano /etc/systemd/system/osrsbot.service
 ```
 
-Paste this (it matches the clone path above; change the email):
+Paste this (change the email). **Important:** `User=` and the `/home/<user>/`
+paths must match YOUR Linux username — run `whoami` to check. It's `ubuntu` on
+an Oracle Ubuntu VM, but something else (e.g. `rocket`) on WSL or other images.
+Replace `ubuntu` / `/home/ubuntu` throughout if `whoami` differs, or systemd
+fails with `status=217/USER`.
 
 ```ini
 [Unit]
