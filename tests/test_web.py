@@ -254,3 +254,24 @@ def test_reset_endpoint_clears_state():
     assert len(c.get("/api/runs").json()) == 1
     assert c.post("/api/reset").json()["status"] == "reset"
     assert c.get("/api/runs").json() == []
+
+
+def test_backtest_result_default_empty():
+    c = client()
+    assert c.get("/api/backtest").json()["ranking"] == []
+
+
+def test_backtest_run_503_when_unconfigured():
+    c = client()
+    assert c.post("/api/backtest/run").status_code == 503
+
+
+def test_backtest_run_calls_runner():
+    from bot import db
+    from bot.web import create_app
+    from fastapi.testclient import TestClient
+    conn = db.connect(":memory:"); db.init_db(conn)
+    called = []
+    tc = TestClient(create_app(conn, backtest_runner=lambda: called.append(True)))
+    assert tc.post("/api/backtest/run").json()["status"] == "started"
+    assert called == [True]

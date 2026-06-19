@@ -83,6 +83,14 @@
     </section>
   </div>
 
+  <section class="panel" style="margin-top:16px">
+    <h2>Strategy backtest
+      <button id="bt-run" class="btn sell" style="float:right">Run backtest</button></h2>
+    <div id="bt-status" class="mut" style="font-size:11px;margin-bottom:6px"></div>
+    <table><thead><tr><th>Strategy</th><th>Profit</th><th>Trades</th><th>Win%</th></tr></thead>
+      <tbody id="bt-body"></tbody></table>
+  </section>
+
   <p class="legend" id="legend">Bot proposes — you place trades in the GE.</p>
 </div>
 <script src="/app.js"></script>

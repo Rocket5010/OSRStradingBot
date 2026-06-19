@@ -124,23 +124,31 @@ up in the dashboard dropdown — no other code changes needed.
 
 ## Backtesting
 
-Rank all strategies over real historical data before trusting one:
+The dashboard has a **Strategy backtest** panel — click **Run backtest** and it
+ranks every strategy by aggregated profit over your watchlist (or a default
+basket of liquid items if the watchlist is empty), showing profit, trade count,
+and win rate. Use it to pick which strategy to actually run.
+
+Results vary a lot by market and timeframe, and the default strategy parameters
+are not tuned — treat the ranking as a starting point, not a guarantee. On daily
+(`24h`) data the trend-following strategies (`breakout`, `momentum`,
+`ma_crossover`) tend to beat the mean-reversion ones (`mean_reversion`,
+`bollinger`, `rsi`), which over-trade on noisy series.
+
+To script it instead of using the dashboard:
 
 ```python
 from bot.api_client import WikiClient
-from bot.strategies.loader import load_strategies
-from bot.backtest.runner import run_ranking, format_ranking
+from bot.backtest_rank import rank_over_items, DEFAULT_BASKET
 
 client = WikiClient(user_agent="osrs-flip-bot/1.0 (you@example.com)")
-factories = {n: type(s) for n, s in
-             load_strategies("bot/strategies").items()}
-ranked = run_ranking(client, item_id=4151, factories=factories,
-                     budget=50_000_000, timestep="24h")
-print(format_ranking(ranked))
+for row in rank_over_items(client, DEFAULT_BASKET):
+    print(f"{row['strategy']:<16}{row['profit']:>14,}{row['trades']:>6}"
+          f"{round(row['win_rate']*100):>5}%")
 ```
 
-Backtest results are **guidance, not gospel** — GE data has no order-book
-depth, so fills are assumed (conservatively).
+Backtest fills are assumed (buy at the period low, sell at the high, minus GE
+tax) since GE data has no order-book depth — so it's **guidance, not gospel**.
 
 ---
 

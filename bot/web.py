@@ -47,9 +47,10 @@ class SellBody(BaseModel):
     sell_price: int = Field(gt=0)
 
 
-def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=None):
+def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=None, backtest_runner=None, backtest_status=None):
     from bot.curation_status import CurationStatus
     status = curation_status or CurationStatus()
+    bt_status = backtest_status or CurationStatus()
     app = FastAPI(title="OSRS Flip Bot")
     sdir = os.path.abspath(
         strategies_dir or os.path.join(os.path.dirname(__file__), "strategies"))
@@ -189,6 +190,22 @@ def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=No
     def reset():
         db_mod.reset_state(conn)
         return {"status": "reset"}
+
+    @app.get("/api/backtest")
+    def backtest_result():
+        from bot.backtest_rank import get_ranking
+        return get_ranking(conn)
+
+    @app.get("/api/backtest/status")
+    def backtest_status_ep():
+        return bt_status.snapshot()
+
+    @app.post("/api/backtest/run")
+    def backtest_run():
+        if backtest_runner is None:
+            raise HTTPException(status_code=503, detail="backtest not available")
+        backtest_runner()
+        return {"status": "started"}
 
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

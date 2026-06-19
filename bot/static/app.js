@@ -137,17 +137,52 @@ function renderWatchlist(items) {
     : "";
 }
 
+function renderBacktest(data) {
+  const rows = data.ranking || [];
+  $("bt-body").innerHTML = rows.length ? rows.map((r) => `
+    <tr><td>${r.strategy}</td>
+    <td class="${r.profit >= 0 ? "up" : "down"}">${fmt(r.profit)}</td>
+    <td>${r.trades}</td><td>${Math.round(r.win_rate * 100)}%</td></tr>`
+  ).join("") : `<tr><td colspan="4" class="mut">No backtest yet — click Run backtest</td></tr>`;
+}
+
+function renderBacktestStatus(s, data) {
+  if (s.running) {
+    $("bt-status").textContent = `running… ${s.done}/${s.total} items`;
+  } else if (s.last_error) {
+    $("bt-status").textContent = "backtest failed: " + s.last_error;
+  } else if (data.finished) {
+    $("bt-status").textContent =
+      `ranked over ${data.n_items} items · ${new Date(data.finished).toLocaleString()}`;
+  } else {
+    $("bt-status").textContent = "";
+  }
+}
+
+async function runBacktest() {
+  $("bt-status").textContent = "backtest started…";
+  try {
+    await api("/backtest/run", "POST");
+  } catch (e) {
+    $("bt-status").textContent = "backtest failed: " + e.message;
+  }
+}
+
 async function refresh() {
   try {
-    const [overview, runs, positions, curate, watchlist] = await Promise.all([
-      api("/overview"), api("/runs"), api("/positions"),
-      api("/curate/status"), api("/watchlist"),
-    ]);
+    const [overview, runs, positions, curate, watchlist, backtest, btStatus] =
+      await Promise.all([
+        api("/overview"), api("/runs"), api("/positions"),
+        api("/curate/status"), api("/watchlist"),
+        api("/backtest"), api("/backtest/status"),
+      ]);
     renderOverview(overview);
     renderRuns(runs);
     renderPositions(positions);
     renderCurateStatus(curate);
     renderWatchlist(watchlist.items);
+    renderBacktest(backtest);
+    renderBacktestStatus(btStatus, backtest);
     $("status-text").textContent = "live · updated " + new Date().toLocaleTimeString();
   } catch (e) {
     $("status-text").textContent = "disconnected";
@@ -182,6 +217,7 @@ $("run-start").addEventListener("click", startRun);
 $("set-save").addEventListener("click", saveSettings);
 $("set-curate").addEventListener("click", curateNow);
 $("set-reset").addEventListener("click", resetBot);
+$("bt-run").addEventListener("click", runBacktest);
 loadStrategies();
 loadSettings();
 refresh();

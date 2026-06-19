@@ -14,6 +14,7 @@ from bot.scheduler import PollScheduler
 from bot.web import create_app
 
 _curate_lock = threading.Lock()
+_backtest_lock = threading.Lock()
 
 DB_PATH = os.environ.get("OSRS_BOT_DB", "osrs_bot.db")
 USER_AGENT = os.environ.get(
@@ -32,6 +33,7 @@ def build():
     db.init_db(api_conn)
     client = WikiClient(user_agent=USER_AGENT)
     curation_status = CurationStatus()
+    backtest_status = CurationStatus()
 
     sched_conn = db.connect(DB_PATH)   # separate connection for the thread
     # scheduler also refreshes the bond goal daily and sends webhook
@@ -58,7 +60,29 @@ def build():
                 _curate_lock.release()
         threading.Thread(target=job, daemon=True).start()
 
-    app = create_app(api_conn, curate_runner=curate_runner, curation_status=curation_status)
+    def backtest_runner():
+        if not _backtest_lock.acquire(blocking=False):
+            return
+        def job():
+            c = db.connect(DB_PATH)
+            backtest_status.start()
+            try:
+                db.init_db(c)
+                from bot.curator import get_watchlist
+                from bot import backtest_rank
+                items = get_watchlist(c) or backtest_rank.DEFAULT_BASKET
+                ranking = backtest_rank.rank_over_items(
+                    client, items, on_progress=backtest_status.progress)
+                backtest_rank.save_ranking(c, ranking, len(items))
+                backtest_status.finish(len(ranking))
+            except Exception as e:
+                backtest_status.fail(e)
+            finally:
+                c.close()
+                _backtest_lock.release()
+        threading.Thread(target=job, daemon=True).start()
+
+    app = create_app(api_conn, curate_runner=curate_runner, curation_status=curation_status, backtest_runner=backtest_runner, backtest_status=backtest_status)
     return app, scheduler
 
 
