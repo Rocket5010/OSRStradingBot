@@ -28,6 +28,9 @@ Map of Content (MOC). Start here. Open the **graph view** to see how everything 
 - [[OSRS Wiki API]] — the free data source
 - [[Bond Goal]] — the success metric (~1 bond / 14 days)
 
+## 🛡️ Quality
+- [[Audit and Hardening]] — full code audit + fixes (156 tests)
+
 ## 🚧 Building it
 - [[Build Phases]] — phased plan, MVP = phases 1–3
 - [[Launch]] — CMD-free start
