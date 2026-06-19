@@ -156,9 +156,24 @@ async function curateNow() {
   }
 }
 
+async function resetBot() {
+  if (!confirm("Reset the bot? This deletes all positions, runs, signals, " +
+               "price cache and the watchlist. Your settings (capital, webhook, " +
+               "bond/curate config) are kept.")) return;
+  try {
+    await api("/reset", "POST");
+    $("set-status").textContent = "bot reset";
+    loadSettings();
+    refresh();
+  } catch (e) {
+    $("set-status").textContent = "reset failed: " + e.message;
+  }
+}
+
 $("run-start").addEventListener("click", startRun);
 $("set-save").addEventListener("click", saveSettings);
 $("set-curate").addEventListener("click", curateNow);
+$("set-reset").addEventListener("click", resetBot);
 loadStrategies();
 loadSettings();
 refresh();

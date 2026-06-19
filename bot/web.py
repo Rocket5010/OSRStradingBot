@@ -183,6 +183,11 @@ def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=No
     def curate_status():
         return status.snapshot()
 
+    @app.post("/api/reset")
+    def reset():
+        db_mod.reset_state(conn)
+        return {"status": "reset"}
+
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 

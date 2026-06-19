@@ -235,3 +235,11 @@ def test_curate_status_reflects_injected():
     tc = TestClient(create_app(conn, curation_status=st))
     s = tc.get("/api/curate/status").json()
     assert s["running"] is True and s["done"] == 2 and s["total"] == 5
+
+
+def test_reset_endpoint_clears_state():
+    c = client()
+    c.post("/api/runs", json={"strategy": "rsi", "budget_gp": 1000})
+    assert len(c.get("/api/runs").json()) == 1
+    assert c.post("/api/reset").json()["status"] == "reset"
+    assert c.get("/api/runs").json() == []

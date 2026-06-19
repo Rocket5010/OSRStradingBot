@@ -93,3 +93,13 @@ def set_config(conn, key, value):
 def get_config(conn, key, default=None):
     row = conn.execute("SELECT value FROM config WHERE key=?", (key,)).fetchone()
     return row["value"] if row else default
+
+
+def reset_state(conn):
+    """Clear all trading state (positions, signals, strategy_runs, price_cache)
+    and the curated watchlist. User settings (capital, bond_*, notify_webhook,
+    curate_*) are preserved. For a full wipe, delete the database file instead."""
+    for table in ("positions", "signals", "strategy_runs", "price_cache"):
+        conn.execute(f"DELETE FROM {table}")
+    conn.execute("DELETE FROM config WHERE key='watchlist'")
+    conn.commit()

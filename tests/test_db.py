@@ -51,3 +51,22 @@ def test_init_db_migration_is_idempotent():
     db.init_db(conn)   # running twice must not error (columns already present)
     pcols = {r["name"] for r in conn.execute("PRAGMA table_info(positions)")}
     assert "high_water" in pcols
+
+
+def test_reset_state_clears_trading_keeps_settings():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.set_config(conn, "capital", "100")
+    db.set_config(conn, "watchlist", "1,2,3")
+    conn.execute("INSERT INTO positions(item_id,item_name,strategy,state,buy_price,qty) "
+                 "VALUES(1,'x','rsi','proposed',10,1)")
+    conn.execute("INSERT INTO strategy_runs(strategy,params_json,budget_gp,spent_gp,state) "
+                 "VALUES('rsi','{}',100,0,'running')")
+    conn.execute("INSERT INTO price_cache(item_id,low,high,vol_1h,ts) VALUES(1,1,2,3,'t')")
+    conn.commit()
+    db.reset_state(conn)
+    assert conn.execute("SELECT COUNT(*) c FROM positions").fetchone()["c"] == 0
+    assert conn.execute("SELECT COUNT(*) c FROM strategy_runs").fetchone()["c"] == 0
+    assert conn.execute("SELECT COUNT(*) c FROM price_cache").fetchone()["c"] == 0
+    assert db.get_config(conn, "watchlist") is None       # watchlist cleared
+    assert db.get_config(conn, "capital") == "100"        # setting kept
