@@ -1,6 +1,7 @@
 """Client for the OSRS Wiki Real-time Prices API. Stdlib only."""
 
 import json
+import threading
 import time
 import urllib.request
 import urllib.error
@@ -19,23 +20,27 @@ class WikiClient:
         self.base_url = base_url
         self.min_interval = min_interval
         self._last_call = 0.0
+        self._lock = threading.Lock()
 
     def _get(self, path):
-        """Rate-limited HTTP GET. Returns parsed JSON. Override in tests."""
-        wait = self.min_interval - (time.monotonic() - self._last_call)
-        if wait > 0:
-            time.sleep(wait)
-        url = f"{self.base_url}{path}"
-        req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
-        try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            raise ApiError(f"HTTP {e.code} for {url}") from e
-        except urllib.error.URLError as e:
-            raise ApiError(f"request failed for {url}: {e}") from e
-        finally:
-            self._last_call = time.monotonic()
+        """Rate-limited HTTP GET. Returns parsed JSON. Override in tests.
+        The lock serializes requests across threads sharing one client so the
+        rate limit stays global (scheduler + curation thread)."""
+        with self._lock:
+            wait = self.min_interval - (time.monotonic() - self._last_call)
+            if wait > 0:
+                time.sleep(wait)
+            url = f"{self.base_url}{path}"
+            req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
+            try:
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+            except urllib.error.HTTPError as e:
+                raise ApiError(f"HTTP {e.code} for {url}") from e
+            except urllib.error.URLError as e:
+                raise ApiError(f"request failed for {url}: {e}") from e
+            finally:
+                self._last_call = time.monotonic()
         return data
 
     def latest(self):

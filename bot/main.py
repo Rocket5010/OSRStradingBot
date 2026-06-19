@@ -45,7 +45,7 @@ def build():
             try:
                 db.init_db(c)
                 from bot.curate_now import run
-                run(c, WikiClient(user_agent=USER_AGENT))
+                run(c, client)   # shared thread-safe client keeps the rate limit global
             finally:
                 c.close()
                 _curate_lock.release()

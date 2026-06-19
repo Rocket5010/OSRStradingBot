@@ -24,6 +24,11 @@ def test_mapping_returns_list():
     assert c.mapping()[0]["name"] == "Cannonball"
 
 
+def test_client_has_lock():
+    c = WikiClient(user_agent="t", min_interval=0)
+    assert hasattr(c, "_lock")
+
+
 def test_timeseries_builds_path_with_params():
     c = FakeClient({"/timeseries?timestep=24h&id=2": {"data": [{"avgHighPrice": 100}]}})
     out = c.timeseries(2, "24h")
