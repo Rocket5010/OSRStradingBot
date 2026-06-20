@@ -205,6 +205,24 @@ def paramsell_loader(_dir):
     return {"paramsell": ParamSell()}
 
 
+def test_min_margin_gate_skips_thin_spread():
+    conn = fresh()
+    db.set_config(conn, "min_margin_gp", "50")
+    rid = runs.start_run(conn, "alwaysbuy", budget_gp=10_000_000)
+    # market: low 100, high 110 -> margin = 110 - tax(2) - 100 = 8 < 50 -> skip
+    evaluate(conn, {1: market(1, 100, 110)}, now=0.0, loader=loader_stub)
+    assert pos.list_positions(conn, state="proposed") == []
+
+
+def test_min_margin_gate_allows_wide_spread():
+    conn = fresh()
+    db.set_config(conn, "min_margin_gp", "50")
+    rid = runs.start_run(conn, "alwaysbuy", budget_gp=10_000_000)
+    # low 100, high 200 -> margin = 200 - tax(4) - 100 = 96 >= 50 -> allowed
+    evaluate(conn, {1: market(1, 100, 200)}, now=0.0, loader=loader_stub)
+    assert len(pos.list_positions(conn, state="proposed")) == 1
+
+
 def test_sell_uses_position_params_not_run_params():
     conn = fresh()
     # run carries a HIGH sell_at (would NOT sell); position carries a LOW one

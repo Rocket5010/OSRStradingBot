@@ -35,7 +35,7 @@ class MeanReversion(Strategy):
             band_low, _ = self._band_low(m)
             if band_low is None or m.low >= band_low:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

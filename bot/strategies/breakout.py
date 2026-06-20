@@ -38,7 +38,7 @@ class Breakout(Strategy):
             avg_vol = self._avg_candle_volume(m.history, p["channel_days"])
             if m.vol_1h < p["vol_mult"] * avg_vol:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

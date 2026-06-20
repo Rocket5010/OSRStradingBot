@@ -30,7 +30,7 @@ class Rsi(Strategy):
             r = self._rsi(m)
             if r is None or r >= self.params["lo"]:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

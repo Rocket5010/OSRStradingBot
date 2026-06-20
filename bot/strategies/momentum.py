@@ -33,7 +33,7 @@ class Momentum(Strategy):
             series = ind.price_series(m.history)
             if not _is_rising(series, self.params["lookback"]):
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

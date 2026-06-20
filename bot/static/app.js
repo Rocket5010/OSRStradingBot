@@ -14,15 +14,17 @@ async function api(path, method = "GET", body) {
 }
 
 async function loadSettings() {
-  const [capital, autoBudget, bondDays, webhook, curateDays] = await Promise.all([
+  const [capital, autoBudget, bondDays, webhook, curateDays, minMargin] = await Promise.all([
     api("/config/capital"), api("/config/auto_budget"), api("/config/bond_days"),
     api("/config/notify_webhook"), api("/config/curate_interval_days"),
+    api("/config/min_margin_gp"),
   ]);
   if (capital.value != null) $("set-capital").value = capital.value;
   if (autoBudget.value != null) $("set-auto-budget").value = autoBudget.value;
   if (bondDays.value != null) $("set-bond-days").value = bondDays.value;
   if (webhook.value != null) $("set-webhook").value = webhook.value;
   if (curateDays.value != null) $("set-curate-days").value = curateDays.value;
+  if (minMargin.value != null) $("set-min-margin").value = minMargin.value;
 }
 
 async function saveSettings() {
@@ -32,6 +34,7 @@ async function saveSettings() {
     ["bond_days", $("set-bond-days").value.trim()],
     ["notify_webhook", $("set-webhook").value.trim()],
     ["curate_interval_days", $("set-curate-days").value.trim()],
+    ["min_margin_gp", $("set-min-margin").value.trim()],
   ];
   for (const [key, value] of entries) {
     if (value !== "") await api(`/config/${key}`, "POST", { value });

@@ -10,6 +10,7 @@ from bot import runs as runs_mod
 from bot import positions as pos_mod
 from bot.market import position_view
 from bot.strategies.loader import load_strategies
+from bot.tax import ge_tax
 
 _OPEN_STATES = ("proposed", "accepted", "filled", "selling")
 _STRATEGIES_DIR = os.path.join(os.path.dirname(__file__), "strategies")
@@ -49,6 +50,9 @@ def evaluate(conn, markets, now, loader=load_strategies):
     positions (one per position)."""
     market_list = list(markets.values())
 
+    from bot import db as _dbmod
+    min_margin = int(_dbmod.get_config(conn, "min_margin_gp") or "0")
+
     # --- buys, per running run ---
     for run in runs_mod.list_runs(conn, state="running"):
         params = json.loads(run["params_json"] or "{}")
@@ -65,10 +69,12 @@ def evaluate(conn, markets, now, loader=load_strategies):
         for sig in strat.find_buys(market_list, budget):
             if _has_open_position(conn, run["id"], sig.item_id):
                 continue
+            m = markets.get(sig.item_id)
+            if m is not None and (m.high - ge_tax(m.high) - sig.price) < min_margin:
+                continue
             cost = sig.price * sig.qty
             if cost > budget - spent_this_pass:
                 continue
-            m = markets.get(sig.item_id)
             name = m.name if m else str(sig.item_id)
             pos_mod.create_proposed(
                 conn, strategy=run["strategy"], item_id=sig.item_id,

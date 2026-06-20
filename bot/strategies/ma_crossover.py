@@ -32,7 +32,7 @@ class MaCrossover(Strategy):
             fast, slow = self._cross(m)
             if fast is None or slow is None or fast <= slow:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

@@ -17,3 +17,11 @@ def test_zero_when_cannot_afford_one():
 
 def test_zero_price_returns_zero():
     assert size_qty(price=0, budget=1000, buy_limit=10) == 0
+
+
+def test_limited_by_volume():
+    assert size_qty(price=1, budget=10**9, buy_limit=0, volume=500) == 500
+
+
+def test_volume_none_is_no_cap():
+    assert size_qty(price=1, budget=1000, buy_limit=0, volume=None) == 1000

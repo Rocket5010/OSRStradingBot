@@ -37,7 +37,7 @@ class CrashRecovery(Strategy):
             crash_line = ref * (1 - self.params["drop_pct"])
             if m.low > crash_line:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

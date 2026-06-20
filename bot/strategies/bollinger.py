@@ -29,7 +29,7 @@ class Bollinger(Strategy):
             bands = self._bands(m)
             if bands is None or m.low > bands[0]:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

@@ -29,7 +29,7 @@ class MarginFlip(Strategy):
             if (margin < p["min_margin"] or m.vol_1h < p["min_vol"]
                     or roi < p["min_roi"]):
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,
