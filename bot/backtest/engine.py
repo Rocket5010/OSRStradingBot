@@ -41,12 +41,18 @@ def _close(pos, sell_price):
 
 
 def run_backtest(strategy, candles, budget, item_id=1, name="item",
-                 buy_limit=0, members=False, max_hold_steps=None):
+                 buy_limit=0, members=False, max_hold_steps=None,
+                 candle_hours=24):
     cash = budget
     open_positions = []
     trades = []
     equity_curve = []
     last_high = None
+    # GE buy limits reset every 4h. One candle spans candle_hours, so within it
+    # you can refill the limit candle_hours/4 times. per_candle_limit models the
+    # realistic max units accumulable in one candle; None = no limit known.
+    windows = max(1, candle_hours // 4)
+    per_candle_limit = buy_limit * windows if buy_limit and buy_limit > 0 else None
 
     for i, c in enumerate(candles):
         hi, lo = c.get("avgHighPrice"), c.get("avgLowPrice")
@@ -60,8 +66,11 @@ def run_backtest(strategy, candles, budget, item_id=1, name="item",
         # history includes the current candle: at step i the current candle's
         # prices are known (same data find_buys/should_sell act on). Not look-ahead
         # — future candles (i+1..) are never exposed.
+        # buy_limit=0 in the MarketData: the strategy sizes by budget/volume only,
+        # and the engine applies the realistic per-candle fill cap below (a single
+        # 4h limit would be far too strict for a multi-window candle).
         md = MarketData(item_id=item_id, name=name, low=lo, high=hi, vol_1h=vol,
-                        history=candles[:i + 1], buy_limit=buy_limit, members=members)
+                        history=candles[:i + 1], buy_limit=0, members=members)
 
         # sells first
         for pos in list(open_positions):
@@ -80,6 +89,8 @@ def run_backtest(strategy, candles, budget, item_id=1, name="item",
         # more than the period's traded volume (you can't buy what didn't trade).
         for sig in strategy.find_buys([md], budget):
             qty = min(sig.qty, vol)
+            if per_candle_limit is not None:
+                qty = min(qty, per_candle_limit)
             if qty <= 0:
                 continue
             cost = sig.price * qty

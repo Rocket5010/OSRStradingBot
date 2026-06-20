@@ -14,6 +14,23 @@ from bot.strategies.loader import load_strategies
 DEFAULT_BASKET = [4151, 11802, 1515, 561, 565, 4587, 1127, 11212, 1392, 2, 11785, 12934]
 
 
+def buy_limits(client):
+    """{item_id: GE 4h buy limit} from /mapping, or {} if unavailable. Used so
+    backtests cap accumulation realistically. Tolerant of stub clients without
+    a mapping() method."""
+    try:
+        rows = client.mapping()
+    except Exception:
+        return {}
+    out = {}
+    for r in rows or []:
+        try:
+            out[int(r["id"])] = int(r.get("limit") or 0)
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
 def rank_over_items(client, item_ids, budget=10_000_000, timestep="24h",
                     strategies_dir=None, min_candles=30, max_hold_steps=30,
                     on_progress=None):
@@ -25,6 +42,7 @@ def rank_over_items(client, item_ids, budget=10_000_000, timestep="24h",
     strategies_dir = strategies_dir or os.path.join(
         os.path.dirname(__file__), "strategies")
     strats = load_strategies(strategies_dir)
+    limits = buy_limits(client)
     agg = {name: {"profit": 0, "trades": 0, "wins": 0, "score": 0.0,
                   "ppd": 0.0, "dd_sum": 0.0, "dd_n": 0} for name in strats}
     total = len(item_ids)
@@ -33,6 +51,7 @@ def rank_over_items(client, item_ids, budget=10_000_000, timestep="24h",
         if len(candles) >= min_candles:
             for name, proto in strats.items():
                 r = run_backtest(type(proto)(), candles, budget, item_id=item_id,
+                                 buy_limit=limits.get(item_id, 0),
                                  max_hold_steps=max_hold_steps)
                 a = agg[name]
                 a["profit"] += r.total_profit

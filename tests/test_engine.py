@@ -109,3 +109,42 @@ def test_volume_caps_quantity():
     candles = [candle(hi=2, lo=1, vol=50), candle(hi=3, lo=2, vol=50)]
     res = run_backtest(BigBuyer(), candles, budget=10**12)
     assert res.trades[0]["qty"] == 100
+
+
+def test_buy_limit_caps_per_candle_accumulation():
+    from bot.strategies.base import BuySignal, SellDecision
+
+    class BigBuyer:
+        name = "bb"
+        def __init__(self, **p): self.bought = False
+        def find_buys(self, markets, budget):
+            if self.bought: return []
+            self.bought = True
+            return [BuySignal(item_id=1, price=1, qty=10**9, reason="")]
+        def should_sell(self, position, market):
+            return SellDecision(sell=True, reason="")
+
+    # buy_limit 10, 24h candle -> 24/4 = 6 windows -> max 60 per candle, even
+    # though volume (10^9) and budget are huge.
+    candles = [candle(hi=2, lo=1, vol=10**9), candle(hi=3, lo=2, vol=10**9)]
+    res = run_backtest(BigBuyer(), candles, budget=10**12, buy_limit=10,
+                       candle_hours=24)
+    assert res.trades[0]["qty"] == 60
+
+
+def test_buy_limit_zero_means_no_limit():
+    from bot.strategies.base import BuySignal, SellDecision
+
+    class BigBuyer:
+        name = "bb"
+        def __init__(self, **p): self.bought = False
+        def find_buys(self, markets, budget):
+            if self.bought: return []
+            self.bought = True
+            return [BuySignal(item_id=1, price=1, qty=10**9, reason="")]
+        def should_sell(self, position, market):
+            return SellDecision(sell=True, reason="")
+
+    candles = [candle(hi=2, lo=1, vol=80), candle(hi=3, lo=2, vol=80)]
+    res = run_backtest(BigBuyer(), candles, budget=10**12, buy_limit=0)
+    assert res.trades[0]["qty"] == 160   # capped by volume only

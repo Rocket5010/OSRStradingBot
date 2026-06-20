@@ -48,6 +48,20 @@ def test_rank_reports_progress(monkeypatch):
     assert seen[-1] == (3, 3)
 
 
+def test_buy_limits_parses_mapping():
+    class C:
+        def mapping(self):
+            return [{"id": 4151, "limit": 70}, {"id": 2, "limit": 13000},
+                    {"id": 99, "limit": None}, {"bad": "row"}]
+    out = backtest_rank.buy_limits(C())
+    assert out[4151] == 70 and out[2] == 13000 and out[99] == 0
+    assert "bad" not in out
+
+
+def test_buy_limits_tolerates_missing_method():
+    assert backtest_rank.buy_limits(StubClient()) == {}   # no mapping() -> {}
+
+
 def test_save_and_get_ranking():
     conn = db.connect(":memory:")
     db.init_db(conn)

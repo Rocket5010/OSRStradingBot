@@ -61,14 +61,17 @@ def curate(conn, client, strategy_factory, candidate_ids, budget,
     gp/day (risk_score), not raw profit, so the watchlist favours items that earn
     steadily within tolerable drawdown. strategy_factory is a zero-arg callable
     returning a fresh Strategy."""
+    from bot.backtest_rank import buy_limits
     log.info("curation: backtesting %d candidates", len(candidate_ids))
+    limits = buy_limits(client)
     scored = []
     total = len(candidate_ids)
     for i, item_id in enumerate(candidate_ids, start=1):
         candles = client.timeseries(item_id, timestep)
         if len(candles) >= min_candles:
             result = run_backtest(strategy_factory(), candles, budget,
-                                  item_id=item_id, max_hold_steps=max_hold_steps)
+                                  item_id=item_id, buy_limit=limits.get(item_id, 0),
+                                  max_hold_steps=max_hold_steps)
             if (result.n_trades > 0 and result.max_drawdown <= max_drawdown
                     and result.total_profit > 0):
                 scored.append((item_id, result.risk_score, result.hit_rate))
