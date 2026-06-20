@@ -13,18 +13,13 @@ async function api(path, method = "GET", body) {
   return r.status === 204 ? null : r.json();
 }
 
-async function loadStrategies() {
-  const list = await api("/strategies");
-  $("run-strategy").innerHTML = list
-    .map((s) => `<option value="${s.name}">${s.name}</option>`).join("");
-}
-
 async function loadSettings() {
-  const [capital, bondDays, webhook, curateDays] = await Promise.all([
-    api("/config/capital"), api("/config/bond_days"), api("/config/notify_webhook"),
-    api("/config/curate_interval_days"),
+  const [capital, autoBudget, bondDays, webhook, curateDays] = await Promise.all([
+    api("/config/capital"), api("/config/auto_budget"), api("/config/bond_days"),
+    api("/config/notify_webhook"), api("/config/curate_interval_days"),
   ]);
   if (capital.value != null) $("set-capital").value = capital.value;
+  if (autoBudget.value != null) $("set-auto-budget").value = autoBudget.value;
   if (bondDays.value != null) $("set-bond-days").value = bondDays.value;
   if (webhook.value != null) $("set-webhook").value = webhook.value;
   if (curateDays.value != null) $("set-curate-days").value = curateDays.value;
@@ -33,6 +28,7 @@ async function loadSettings() {
 async function saveSettings() {
   const entries = [
     ["capital", $("set-capital").value.trim()],
+    ["auto_budget", $("set-auto-budget").value.trim()],
     ["bond_days", $("set-bond-days").value.trim()],
     ["notify_webhook", $("set-webhook").value.trim()],
     ["curate_interval_days", $("set-curate-days").value.trim()],
@@ -44,24 +40,12 @@ async function saveSettings() {
   refresh();
 }
 
-async function startRun() {
-  const strategy = $("run-strategy").value;
-  const budget_gp = parseInt($("run-budget").value || "0", 10);
-  if (!budget_gp) return;
-  await api("/runs", "POST", { strategy, budget_gp });
-  $("run-budget").value = "";
-  refresh();
-}
-
 function renderRuns(runs) {
   $("runs-body").innerHTML = runs.map((r) => `
     <tr><td>${r.strategy}</td><td>${fmt(r.budget_gp)}</td>
-    <td>${fmt(r.spent_gp)}</td><td>${r.state}</td>
-    <td>${r.state === "running"
-      ? `<button class="btn ghost" onclick="stopRun(${r.id})">Stop</button>` : ""}</td></tr>`
+    <td>${fmt(r.spent_gp)}</td><td>${r.state}</td></tr>`
   ).join("");
 }
-async function stopRun(id) { await api(`/runs/${id}/stop`, "POST"); refresh(); }
 
 function renderPositions(positions) {
   const buys = positions.filter((p) => p.state === "proposed");
@@ -213,12 +197,10 @@ async function resetBot() {
   }
 }
 
-$("run-start").addEventListener("click", startRun);
 $("set-save").addEventListener("click", saveSettings);
 $("set-curate").addEventListener("click", curateNow);
 $("set-reset").addEventListener("click", resetBot);
 $("bt-run").addEventListener("click", runBacktest);
-loadStrategies();
 loadSettings();
 refresh();
 setInterval(refresh, 5000);
