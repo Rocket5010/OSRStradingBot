@@ -157,8 +157,12 @@ def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=No
         else:
             period_profit = 0
         bond_price = cfg_int("bond_price", 0)
+        auto_row = conn.execute(
+            "SELECT strategy FROM strategy_runs WHERE auto=1 AND state='running' "
+            "LIMIT 1").fetchone()
         return {
             "capital": capital,
+            "active_strategy": auto_row["strategy"] if auto_row else None,
             "committed": committed,
             "free": capital - committed,
             "open_positions": open_count,

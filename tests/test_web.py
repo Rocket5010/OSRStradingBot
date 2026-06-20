@@ -275,3 +275,14 @@ def test_backtest_run_calls_runner():
     tc = TestClient(create_app(conn, backtest_runner=lambda: called.append(True)))
     assert tc.post("/api/backtest/run").json()["status"] == "started"
     assert called == [True]
+
+
+def test_overview_active_strategy():
+    from bot import db, runs
+    from bot.web import create_app
+    from fastapi.testclient import TestClient
+    conn = db.connect(":memory:"); db.init_db(conn)
+    tc = TestClient(create_app(conn))
+    assert tc.get("/api/overview").json()["active_strategy"] is None
+    runs.ensure_auto_run(conn, "breakout", 500_000_000)
+    assert tc.get("/api/overview").json()["active_strategy"] == "breakout"

@@ -82,6 +82,8 @@ async function sold(id) {
 }
 
 function renderOverview(o) {
+  $("active-strategy").textContent = o.active_strategy
+    ? `active: ${o.active_strategy}` : "idle — set auto-budget + run backtest";
   $("stat-capital").textContent = fmt(o.capital);
   $("stat-capital-sub").textContent = `${fmt(o.free)} free · ${fmt(o.committed)} committed`;
   $("stat-profit").textContent = (o.period_profit >= 0 ? "+" : "") + fmt(o.period_profit);
