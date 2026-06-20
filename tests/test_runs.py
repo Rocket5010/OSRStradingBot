@@ -33,6 +33,25 @@ def test_list_runs_filters_state():
     assert {r["id"] for r in running} == {a}
 
 
+def test_ensure_auto_run_creates_one():
+    conn = fresh()
+    rid = runs.ensure_auto_run(conn, "breakout", 500_000_000)
+    row = runs.get_run(conn, rid)
+    assert row["auto"] == 1 and row["strategy"] == "breakout"
+    assert row["budget_gp"] == 500_000_000 and row["state"] == "running"
+
+
+def test_ensure_auto_run_updates_in_place():
+    conn = fresh()
+    rid1 = runs.ensure_auto_run(conn, "breakout", 500_000_000)
+    rid2 = runs.ensure_auto_run(conn, "momentum", 400_000_000)
+    assert rid1 == rid2                       # same run, not a new one
+    row = runs.get_run(conn, rid2)
+    assert row["strategy"] == "momentum" and row["budget_gp"] == 400_000_000
+    n = conn.execute("SELECT COUNT(*) c FROM strategy_runs WHERE auto=1").fetchone()["c"]
+    assert n == 1
+
+
 def test_spent_and_available():
     conn = fresh()
     rid = runs.start_run(conn, "rsi", budget_gp=1000)

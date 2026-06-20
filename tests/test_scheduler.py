@@ -94,6 +94,31 @@ def test_curation_runs_and_writes_watchlist():
     assert curator.get_watchlist(conn, default=[1]) is not None
 
 
+def test_ensure_auto_pilot_creates_run():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.set_config(conn, "auto_budget", "500000000")
+    from bot import backtest_rank
+    backtest_rank.save_ranking(conn, [{"strategy": "breakout", "profit": 100,
+                                       "trades": 5, "win_rate": 0.6}], 3)
+    sched = PollScheduler(conn, StubClient(), watchlist=[1], loader=loader_stub)
+    sched._ensure_auto_pilot()
+    rows = conn.execute("SELECT * FROM strategy_runs WHERE auto=1").fetchall()
+    assert len(rows) == 1 and rows[0]["strategy"] == "breakout"
+    assert rows[0]["budget_gp"] == 500000000
+
+
+def test_ensure_auto_pilot_noop_without_budget():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    from bot import backtest_rank
+    backtest_rank.save_ranking(conn, [{"strategy": "breakout", "profit": 100,
+                                       "trades": 5, "win_rate": 0.6}], 3)
+    sched = PollScheduler(conn, StubClient(), watchlist=[1], loader=loader_stub)
+    sched._ensure_auto_pilot()   # auto_budget unset -> no run
+    assert conn.execute("SELECT COUNT(*) c FROM strategy_runs").fetchone()["c"] == 0
+
+
 def test_scheduler_has_logger():
     import bot.scheduler as s
     assert s.log.name == "bot.scheduler"

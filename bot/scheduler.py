@@ -16,7 +16,8 @@ class PollScheduler:
     def __init__(self, conn, client, watchlist, interval_s=300,
                  timestep="24h", loader=load_strategies,
                  notifier=None, goal_interval_s=86400,
-                 curate_interval_s=604800, db_path=None):
+                 curate_interval_s=604800, backtest_interval_s=604800,
+                 db_path=None):
         self.conn = conn
         self.client = client
         self.watchlist = watchlist
@@ -27,14 +28,17 @@ class PollScheduler:
         self.notifier = notifier or _notify.notify
         self.goal_interval_s = goal_interval_s
         self.curate_interval_s = curate_interval_s
+        self.backtest_interval_s = backtest_interval_s
         # If set, periodic curation runs in its OWN thread + connection so a slow
         # network curation can't stall the poll loop. Without it (tests), curation
         # runs inline on self.conn.
         self.db_path = db_path
         self._curate_lock = threading.Lock()
+        self._backtest_lock = threading.Lock()
         self.default_watchlist = watchlist
         self._last_curate = None
         self._last_goal = None
+        self._last_backtest = None
         self._mapping = None
         self._history = None
         self._stop = threading.Event()
@@ -71,6 +75,13 @@ class PollScheduler:
             self._start_curation()
             self._last_curate = now
 
+        # weekly strategy-ranking refresh (slow cadence)
+        if self._last_backtest is None or (now - self._last_backtest) >= self.backtest_interval_s:
+            self._start_backtest()
+            self._last_backtest = now
+        # auto-pilot: keep the auto-run pointed at the current best strategy
+        self._ensure_auto_pilot()
+
         from bot.curator import get_watchlist
         watch = get_watchlist(self.conn, default=self.default_watchlist)
         markets = build_market_data(self.conn, self._mapping, self._history,
@@ -102,6 +113,55 @@ class PollScheduler:
                             name, r["price"], r["reason"] or ""))
                     except Exception:
                         log.warning("notification failed", exc_info=True)
+
+    def _ensure_auto_pilot(self):
+        """Point the single auto-run at the current best-ranked strategy."""
+        from bot import db, backtest_rank
+        from bot import runs as runs_mod
+        auto_budget = int(db.get_config(self.conn, "auto_budget") or "0")
+        if auto_budget <= 0:
+            return
+        ranking = backtest_rank.get_ranking(self.conn).get("ranking") or []
+        if ranking and ranking[0]["profit"] > 0:
+            runs_mod.ensure_auto_run(self.conn, ranking[0]["strategy"], auto_budget)
+
+    def _start_backtest(self):
+        """Refresh the strategy ranking. Threaded with its own connection when
+        db_path is set; inline on self.conn otherwise (tests)."""
+        if not self._backtest_lock.acquire(blocking=False):
+            return
+
+        def _do(conn):
+            from bot import backtest_rank
+            from bot.curator import get_watchlist
+            items = get_watchlist(conn) or backtest_rank.DEFAULT_BASKET
+            ranking = backtest_rank.rank_over_items(self.client, items)
+            backtest_rank.save_ranking(conn, ranking, len(items))
+
+        if self.db_path is None:
+            try:
+                _do(self.conn)
+            except Exception:
+                log.exception("auto backtest failed")
+            finally:
+                self._backtest_lock.release()
+            return
+
+        def job():
+            from bot import db as _db
+            c = None
+            try:
+                c = _db.connect(self.db_path)
+                _db.init_db(c)
+                _do(c)
+            except Exception:
+                log.exception("auto backtest failed")
+            finally:
+                if c is not None:
+                    c.close()
+                self._backtest_lock.release()
+
+        threading.Thread(target=job, daemon=True).start()
 
     def _start_curation(self):
         """Run a curation pass. Threaded with its own connection when db_path is

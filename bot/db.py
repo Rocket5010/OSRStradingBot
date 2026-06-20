@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS strategy_runs (
     budget_gp INTEGER NOT NULL,
     spent_gp INTEGER NOT NULL DEFAULT 0,
     state TEXT NOT NULL,
+    auto INTEGER NOT NULL DEFAULT 0,
     started_at TEXT, stopped_at TEXT
 );
 CREATE TABLE IF NOT EXISTS config (
@@ -66,6 +67,7 @@ def connect(path):
 _MIGRATIONS = {
     "positions": [("high_water", "INTEGER"), ("ref_price", "INTEGER"), ("params_json", "TEXT")],
     "signals": [("position_id", "INTEGER")],
+    "strategy_runs": [("auto", "INTEGER NOT NULL DEFAULT 0")],
 }
 
 

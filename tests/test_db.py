@@ -64,6 +64,13 @@ def test_save_and_get_item_names():
     assert db.get_item_names(conn)[4151] == "Whip"
 
 
+def test_strategy_runs_has_auto_column():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(strategy_runs)")}
+    assert "auto" in cols
+
+
 def test_reset_state_clears_trading_keeps_settings():
     conn = db.connect(":memory:")
     db.init_db(conn)
