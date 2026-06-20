@@ -73,7 +73,7 @@ def evaluate(conn, markets, now, loader=load_strategies):
             pos_mod.create_proposed(
                 conn, strategy=run["strategy"], item_id=sig.item_id,
                 item_name=name, buy_price=sig.price, qty=sig.qty,
-                run_id=run["id"])
+                run_id=run["id"], params=params)
             spent_this_pass += cost
 
     # --- prune stale proposals ---
@@ -81,8 +81,7 @@ def evaluate(conn, markets, now, loader=load_strategies):
         m = markets.get(p["item_id"])
         if m is None:
             continue  # no fresh data — leave untouched
-        run = runs_mod.get_run(conn, p["run_id"]) if p["run_id"] else None
-        sparams = json.loads(run["params_json"]) if run and run["params_json"] else {}
+        sparams = json.loads(p["params_json"]) if p["params_json"] else {}
         strat = _make_strategy(p["strategy"], sparams, loader)
         if strat is None:
             continue
@@ -97,8 +96,7 @@ def evaluate(conn, markets, now, loader=load_strategies):
         if m is None:
             continue
         pos_mod.update_high_water(conn, p["id"], m.high)
-        run = runs_mod.get_run(conn, p["run_id"]) if p["run_id"] else None
-        sparams = json.loads(run["params_json"]) if run and run["params_json"] else {}
+        sparams = json.loads(p["params_json"]) if p["params_json"] else {}
         strat = _make_strategy(p["strategy"], sparams, loader)
         if strat is None:
             continue

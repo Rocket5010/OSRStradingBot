@@ -2,6 +2,7 @@
 """Position lifecycle: proposed -> accepted -> filled -> selling -> sold,
 with dismiss/cancel branches. Commits/releases run capital and computes P/L."""
 
+import json
 from datetime import datetime, timezone
 
 from bot.tax import ge_tax
@@ -13,13 +14,14 @@ def _now():
 
 
 def create_proposed(conn, strategy, item_id, item_name, buy_price, qty,
-                    run_id=None, sell_target=None, stop_loss=None, ref_price=None):
+                    run_id=None, sell_target=None, stop_loss=None, ref_price=None,
+                    params=None):
     cur = conn.execute(
         "INSERT INTO positions(item_id, item_name, strategy, run_id, state, "
-        "buy_price, qty, sell_target, stop_loss, high_water, ref_price, created_at) "
-        "VALUES(?, ?, ?, ?, 'proposed', ?, ?, ?, ?, ?, ?, ?)",
+        "buy_price, qty, sell_target, stop_loss, high_water, ref_price, params_json, created_at) "
+        "VALUES(?, ?, ?, ?, 'proposed', ?, ?, ?, ?, ?, ?, ?, ?)",
         (item_id, item_name, strategy, run_id, buy_price, qty,
-         sell_target, stop_loss, buy_price, ref_price, _now()),
+         sell_target, stop_loss, buy_price, ref_price, json.dumps(params or {}), _now()),
     )
     conn.commit()
     return cur.lastrowid

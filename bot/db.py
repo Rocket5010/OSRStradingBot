@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS positions (
     buy_price INTEGER, qty INTEGER, buy_tax INTEGER,
     sell_target INTEGER, stop_loss INTEGER, max_hold_until TEXT,
     high_water INTEGER, ref_price INTEGER,
+    params_json TEXT,
     sell_price INTEGER, realized_pl INTEGER,
     created_at TEXT, filled_at TEXT, closed_at TEXT
 );
@@ -63,7 +64,7 @@ def connect(path):
 # without losing logged positions/config. (CREATE TABLE IF NOT EXISTS does not
 # alter existing tables, so we migrate explicitly.)
 _MIGRATIONS = {
-    "positions": [("high_water", "INTEGER"), ("ref_price", "INTEGER")],
+    "positions": [("high_water", "INTEGER"), ("ref_price", "INTEGER"), ("params_json", "TEXT")],
     "signals": [("position_id", "INTEGER")],
 }
 

@@ -189,3 +189,29 @@ def test_make_strategy_caches_loader():
     el._make_strategy("alwaysbuy", {}, counting_loader)
     assert len(calls) == 1                      # loader invoked once, then cached
     el._strategy_cache.clear()                  # don't leak into other tests
+
+
+class ParamSell:
+    name = "paramsell"
+    def __init__(self, **p):
+        self.params = {"sell_at": p.get("sell_at", 999999)}
+    def find_buys(self, markets, budget):
+        return []
+    def should_sell(self, position, market):
+        return SellDecision(sell=market.high >= self.params["sell_at"], reason="hit")
+
+
+def paramsell_loader(_dir):
+    return {"paramsell": ParamSell()}
+
+
+def test_sell_uses_position_params_not_run_params():
+    conn = fresh()
+    # run carries a HIGH sell_at (would NOT sell); position carries a LOW one
+    rid = runs.start_run(conn, "paramsell", budget_gp=10_000, params={"sell_at": 999999})
+    pid = pos.create_proposed(conn, strategy="paramsell", item_id=1, item_name="i1",
+                              buy_price=100, qty=1, run_id=rid, params={"sell_at": 100})
+    pos.accept(conn, pid); pos.mark_filled(conn, pid)
+    evaluate(conn, {1: market(1, 120, 150)}, now=0.0, loader=paramsell_loader)
+    sigs = conn.execute("SELECT * FROM signals WHERE type='sell'").fetchall()
+    assert len(sigs) == 1   # high 150 >= position's sell_at 100 -> sell, despite run's 999999

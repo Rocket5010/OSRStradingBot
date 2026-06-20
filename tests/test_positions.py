@@ -103,3 +103,20 @@ def test_high_water_and_ref_price_default_and_update():
     assert pos.get(conn, pid)["high_water"] == 150
     pos.update_high_water(conn, pid, 120)   # never decreases
     assert pos.get(conn, pid)["high_water"] == 150
+
+
+def test_create_proposed_stores_params():
+    conn = fresh()
+    pid = pos.create_proposed(conn, strategy="rsi", item_id=2, item_name="Cb",
+                              buy_price=100, qty=10, params={"lo": 25})
+    import json
+    row = pos.get(conn, pid)
+    assert json.loads(row["params_json"]) == {"lo": 25}
+
+
+def test_create_proposed_params_default_empty():
+    conn = fresh()
+    pid = pos.create_proposed(conn, strategy="rsi", item_id=2, item_name="Cb",
+                              buy_price=100, qty=10)
+    import json
+    assert json.loads(pos.get(conn, pid)["params_json"]) == {}
