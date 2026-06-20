@@ -49,24 +49,27 @@ def add_spent(conn, run_id, delta):
     conn.commit()
 
 
-def ensure_auto_run(conn, strategy, budget):
-    """Ensure exactly one running auto-run exists with the given strategy+budget.
-    Creates it if absent, else updates strategy/budget in place (so open
-    positions keep their own strategy for selling). Returns the run id."""
+def ensure_auto_run(conn, strategy, budget, params=None):
+    """Ensure exactly one running auto-run exists with the given strategy, budget
+    and (tuned) params. Creates it if absent, else updates in place when any of
+    them changed (so open positions keep their own strategy/params for selling).
+    Returns the run id."""
+    params_json = json.dumps(params or {})
     row = conn.execute(
         "SELECT * FROM strategy_runs WHERE auto=1 AND state='running' LIMIT 1"
     ).fetchone()
     if row is None:
         cur = conn.execute(
             "INSERT INTO strategy_runs(strategy, params_json, budget_gp, spent_gp, "
-            "state, started_at, auto) VALUES(?, '{}', ?, 0, 'running', ?, 1)",
-            (strategy, budget, _now()))
+            "state, started_at, auto) VALUES(?, ?, ?, 0, 'running', ?, 1)",
+            (strategy, params_json, budget, _now()))
         conn.commit()
         return cur.lastrowid
-    if row["strategy"] != strategy or row["budget_gp"] != budget:
+    if (row["strategy"] != strategy or row["budget_gp"] != budget
+            or (row["params_json"] or "{}") != params_json):
         conn.execute(
-            "UPDATE strategy_runs SET strategy=?, budget_gp=? WHERE id=?",
-            (strategy, budget, row["id"]))
+            "UPDATE strategy_runs SET strategy=?, budget_gp=?, params_json=? WHERE id=?",
+            (strategy, budget, params_json, row["id"]))
         conn.commit()
     return row["id"]
 

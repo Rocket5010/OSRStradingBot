@@ -72,7 +72,7 @@ def build():
                 from bot import backtest_rank
                 items = get_watchlist(c) or backtest_rank.DEFAULT_BASKET
                 ranking = backtest_rank.rank_over_items(
-                    client, items, on_progress=backtest_status.progress)
+                    client, items, tune=True, on_progress=backtest_status.progress)
                 backtest_rank.save_ranking(c, ranking, len(items))
                 backtest_status.finish(len(ranking))
             except Exception as e:

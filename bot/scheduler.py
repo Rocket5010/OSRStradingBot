@@ -122,8 +122,10 @@ class PollScheduler:
         if auto_budget <= 0:
             return
         ranking = backtest_rank.get_ranking(self.conn).get("ranking") or []
-        if ranking and ranking[0]["profit"] > 0:
-            runs_mod.ensure_auto_run(self.conn, ranking[0]["strategy"], auto_budget)
+        if ranking and ranking[0]["score"] > 0:
+            top = ranking[0]
+            runs_mod.ensure_auto_run(self.conn, top["strategy"], auto_budget,
+                                     top.get("params") or {})
 
     def _start_backtest(self):
         """Refresh the strategy ranking. Threaded with its own connection when
@@ -135,7 +137,7 @@ class PollScheduler:
             from bot import backtest_rank
             from bot.curator import get_watchlist
             items = get_watchlist(conn) or backtest_rank.DEFAULT_BASKET
-            ranking = backtest_rank.rank_over_items(self.client, items)
+            ranking = backtest_rank.rank_over_items(self.client, items, tune=True)
             backtest_rank.save_ranking(conn, ranking, len(items))
 
         if self.db_path is None:

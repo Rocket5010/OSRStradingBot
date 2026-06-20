@@ -17,6 +17,13 @@ Raw summed profit is budget-dependent, biased by how many items are in the baske
 
 `run_backtest` also takes `max_hold_steps` (default 30 in curation/ranking) so a strategy that buys and never sells is force-closed and judged on a realistic holding period instead of being flattered by end-of-window liquidation.
 
+## Parameter tuning (walk-forward)
+`rank_over_items(tune=True)` walk-forward-tunes each strategy before ranking (module `bot/tuning.py`). Picking params that look best over the *whole* history over-fits noise; instead each item's candles are cut into disjoint contiguous time segments (blocked cross-validation) and every param combo is scored on each segment **without ever fitting to it**. A combo wins only if it earns consistently across segments — that generalizes.
+
+The objective is deliberately **conservative** (smaller margin, higher chance, not aggressive): a combo must be profitable in at least `POS_FRACTION_GATE` (0.6) of scored windows to be eligible, then ranks by mean `conservative_score = profit_per_day * hit_rate / (1 + 2*max_drawdown)`. So steady, high-probability params beat big-but-rare ones. Grids (`tuning.GRIDS`) are small and lean conservative (take profit sooner, tighter stops, calmer bands).
+
+Tuned params ride along in each ranking row (`params`), are stored with the ranking, and the [[Auto-pilot]] runs the winning strategy with them (`runs.ensure_auto_run(..., params)`). Live validated: tuning rescued `breakout` to +25k gp/day at 85% win / 3% drawdown, and pulled the aggressive `crash_recovery` back to the steadier `drop_pct=0.25` that's reliable across every fold.
+
 ## Honest assumptions
 GE data has no order-book depth, so fills are assumed. Backtest uses conservative assumptions — volume cap, GE buy limits, [[GE Tax and PL|2% tax]] — so results don't lie. **Backtest is guidance, not gospel.**
 

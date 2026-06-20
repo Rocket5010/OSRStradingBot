@@ -143,6 +143,15 @@ the same score, and screening now uses **two buckets** (liquid high-volume items
 + expensive lower-volume items with a real spread) so high-margin items aren't
 buried under cheap high-volume ones.
 
+**Parameter tuning (walk-forward).** Backtest ranking tunes each strategy's
+parameters first (`tune=True`). To avoid over-fitting, each item's candles are
+split into disjoint time segments and every param combo is scored out-of-sample
+on each; a combo wins only if it's profitable in ≥60% of windows, then by a
+conservative score (`gp/day * hit_rate / (1 + 2*drawdown)`). The auto-pilot runs
+the winning strategy with its tuned params. This favours steady, high-probability
+settings over aggressive ones — e.g. live it rescued `breakout` to +25k gp/day at
+85% win / 3% drawdown.
+
 Results vary a lot by market and timeframe, and the default strategy parameters
 are not tuned — treat the ranking as a starting point, not a guarantee. On daily
 (`24h`) data the trend-following strategies (`breakout`, `momentum`,

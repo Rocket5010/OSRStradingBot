@@ -33,41 +33,62 @@ def buy_limits(client):
 
 def rank_over_items(client, item_ids, budget=10_000_000, timestep="24h",
                     strategies_dir=None, min_candles=30, max_hold_steps=30,
-                    on_progress=None):
+                    tune=False, on_progress=None):
     """Backtest each strategy over each item; aggregate metrics and return a
     list of {strategy, score, profit, profit_per_day, trades, win_rate,
-    max_drawdown} sorted by risk-adjusted gp/day (the score). Ranking on score
-    rather than raw profit time-normalizes and penalizes drawdown, so the
-    auto-pilot picks the steadiest earner toward the bond goal, not a lucky one."""
+    max_drawdown, params} sorted by risk-adjusted gp/day (the score). Ranking on
+    score rather than raw profit time-normalizes and penalizes drawdown, so the
+    auto-pilot picks the steadiest earner toward the bond goal, not a lucky one.
+
+    tune=True walk-forward-tunes each strategy's parameters first (see
+    bot.tuning) and ranks using the tuned params, returning them per row so the
+    auto-pilot can run with them."""
     strategies_dir = strategies_dir or os.path.join(
         os.path.dirname(__file__), "strategies")
     strats = load_strategies(strategies_dir)
     limits = buy_limits(client)
-    agg = {name: {"profit": 0, "trades": 0, "wins": 0, "score": 0.0,
-                  "ppd": 0.0, "dd_sum": 0.0, "dd_n": 0} for name in strats}
+
+    # fetch each item's candles once and reuse for tuning + ranking (no refetch)
+    candles_by_item = {}
     total = len(item_ids)
     for i, item_id in enumerate(item_ids, start=1):
         candles = client.timeseries(item_id, timestep)
         if len(candles) >= min_candles:
-            for name, proto in strats.items():
-                r = run_backtest(type(proto)(), candles, budget, item_id=item_id,
-                                 buy_limit=limits.get(item_id, 0),
-                                 max_hold_steps=max_hold_steps)
-                a = agg[name]
-                a["profit"] += r.total_profit
-                a["trades"] += r.n_trades
-                a["wins"] += sum(1 for t in r.trades if t["pl"] > 0)
-                a["score"] += r.risk_score
-                a["ppd"] += r.profit_per_day
-                a["dd_sum"] += r.max_drawdown
-                a["dd_n"] += 1
+            candles_by_item[item_id] = candles
         if on_progress is not None:
             on_progress(i, total)
+
+    tuned = {}
+    if tune:
+        from bot import tuning
+        for name, proto in strats.items():
+            params, _ = tuning.tune_strategy(
+                name, type(proto), candles_by_item, budget, limits=limits,
+                max_hold_steps=max_hold_steps)
+            tuned[name] = params
+
+    agg = {name: {"profit": 0, "trades": 0, "wins": 0, "score": 0.0,
+                  "ppd": 0.0, "dd_sum": 0.0, "dd_n": 0} for name in strats}
+    for item_id, candles in candles_by_item.items():
+        for name, proto in strats.items():
+            params = tuned.get(name, {})
+            r = run_backtest(type(proto)(**params), candles, budget,
+                             item_id=item_id, buy_limit=limits.get(item_id, 0),
+                             max_hold_steps=max_hold_steps)
+            a = agg[name]
+            a["profit"] += r.total_profit
+            a["trades"] += r.n_trades
+            a["wins"] += sum(1 for t in r.trades if t["pl"] > 0)
+            a["score"] += r.risk_score
+            a["ppd"] += r.profit_per_day
+            a["dd_sum"] += r.max_drawdown
+            a["dd_n"] += 1
     ranked = sorted(agg.items(), key=lambda kv: kv[1]["score"], reverse=True)
     return [{"strategy": n, "score": round(a["score"], 2), "profit": a["profit"],
              "profit_per_day": round(a["ppd"], 1), "trades": a["trades"],
              "win_rate": (a["wins"] / a["trades"]) if a["trades"] else 0.0,
-             "max_drawdown": (a["dd_sum"] / a["dd_n"]) if a["dd_n"] else 0.0}
+             "max_drawdown": (a["dd_sum"] / a["dd_n"]) if a["dd_n"] else 0.0,
+             "params": tuned.get(n, {})}
             for n, a in ranked]
 
 
