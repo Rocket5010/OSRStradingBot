@@ -130,9 +130,18 @@ up in the dashboard dropdown — no other code changes needed.
 ## Backtesting
 
 The dashboard has a **Strategy backtest** panel — click **Run backtest** and it
-ranks every strategy by aggregated profit over your watchlist (or a default
-basket of liquid items if the watchlist is empty), showing profit, trade count,
-and win rate. Use it to pick which strategy to actually run.
+ranks every strategy over your watchlist (or a default basket of liquid items if
+the watchlist is empty), showing **gp/day**, total profit, trade count, win rate,
+and max drawdown. Use it to pick which strategy to actually run.
+
+Ranking is by **risk-adjusted gp/day** — `profit_per_day / (1 + max_drawdown)` —
+not raw profit. Raw profit is budget-dependent and ignores time and risk; a
+strategy earning 5M over 300 days would wrongly outrank one earning 4M over 30.
+The score time-normalizes and penalizes drawdown so the auto-pilot favours the
+steadiest earner toward the bond goal (gp/day). Curation ranks watchlist items by
+the same score, and screening now uses **two buckets** (liquid high-volume items
++ expensive lower-volume items with a real spread) so high-margin items aren't
+buried under cheap high-volume ones.
 
 Results vary a lot by market and timeframe, and the default strategy parameters
 are not tuned — treat the ranking as a starting point, not a guarantee. On daily
@@ -148,7 +157,8 @@ from bot.backtest_rank import rank_over_items, DEFAULT_BASKET
 
 client = WikiClient(user_agent="osrs-flip-bot/1.0 (you@example.com)")
 for row in rank_over_items(client, DEFAULT_BASKET):
-    print(f"{row['strategy']:<16}{row['profit']:>14,}{row['trades']:>6}"
+    print(f"{row['strategy']:<16}{row['profit_per_day']:>12,.0f}/day"
+          f"{row['profit']:>14,}{row['trades']:>6}"
           f"{round(row['win_rate']*100):>5}%")
 ```
 

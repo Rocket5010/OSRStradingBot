@@ -25,7 +25,7 @@ def run(conn, client, strategies_dir=None, cap=None, budget=None, min_candles=30
     poll_once(client, conn)
     cap = cap or int(os.environ.get("CURATE_CAP", "100"))
     budget = budget or int(db.get_config(conn, "curate_budget") or "10000000")
-    candidates = curator.screen_candidates(conn, cap=cap)
+    candidates = curator.screen_two_bucket(conn, liquid_cap=cap)
     picks = curator.curate(conn, client, factory, candidates, budget,
                            min_candles=min_candles, on_progress=on_progress)
     # Only overwrite the watchlist when curation actually found something —

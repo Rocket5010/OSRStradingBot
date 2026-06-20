@@ -10,34 +10,68 @@ from bot.backtest.engine import run_backtest
 log = logging.getLogger("bot.curator")
 
 
+def _top_by(conn, order_expr, where, params, cap):
+    sql = (f"SELECT item_id FROM price_cache WHERE {where} "
+           f"ORDER BY {order_expr} DESC LIMIT ?")
+    return [r["item_id"] for r in conn.execute(sql, [*params, cap]).fetchall()]
+
+
 def screen_candidates(conn, min_vol=100, min_price=1, max_price=None, cap=200):
     """Liquid items from price_cache, top `cap` by 1h volume."""
-    sql = ("SELECT item_id FROM price_cache "
-           "WHERE vol_1h >= ? AND low >= ? AND low > 0")
+    where = "vol_1h >= ? AND low >= ? AND low > 0"
     params = [min_vol, min_price]
     if max_price is not None:
-        sql += " AND high <= ?"
+        where += " AND high <= ?"
         params.append(max_price)
-    sql += " ORDER BY vol_1h DESC LIMIT ?"
-    params.append(cap)
-    return [r["item_id"] for r in conn.execute(sql, params).fetchall()]
+    return _top_by(conn, "vol_1h", where, params, cap)
+
+
+def screen_two_bucket(conn, liquid_min_vol=100, liquid_cap=150,
+                      value_min_vol=10, value_min_price=100_000, value_cap=100):
+    """Two opportunity buckets merged:
+      - liquid: high 1h volume (cheap, fast-flipping items) — the old behaviour.
+      - value: expensive items (>= value_min_price) at a much lower volume floor,
+        ranked by absolute spread * sqrt(volume) so a real margin can outweigh
+        thin volume. Without this bucket the volume-DESC sort buries every
+        expensive high-margin item (whips, armour, 3rd-age) under cheap runes.
+    Returns a de-duplicated list. The backtest is still the final judge — items
+    that can't actually be sold score badly and get dropped."""
+    liquid = screen_candidates(conn, min_vol=liquid_min_vol, cap=liquid_cap)
+    # Rank the value bucket by spread * volume: a real gp spread can outweigh
+    # thin volume, but volume still breaks ties so totally illiquid junk sinks.
+    # The price floor already excludes cheap items, so volume can't dominate.
+    value = _top_by(
+        conn,
+        "(high - low) * vol_1h",
+        "vol_1h >= ? AND low >= ? AND high > low AND low > 0",
+        [value_min_vol, value_min_price],
+        value_cap)
+    seen, merged = set(), []
+    for item_id in [*liquid, *value]:
+        if item_id not in seen:
+            seen.add(item_id)
+            merged.append(item_id)
+    return merged
 
 
 def curate(conn, client, strategy_factory, candidate_ids, budget,
            top_n=50, timestep="24h", min_candles=30, max_drawdown=0.4,
-           on_progress=None):
-    """Backtest each candidate; return the top_n item ids by profit.
-    strategy_factory is a zero-arg callable returning a fresh Strategy."""
+           max_hold_steps=30, on_progress=None):
+    """Backtest each candidate; return the top_n item ids ranked by risk-adjusted
+    gp/day (risk_score), not raw profit, so the watchlist favours items that earn
+    steadily within tolerable drawdown. strategy_factory is a zero-arg callable
+    returning a fresh Strategy."""
     log.info("curation: backtesting %d candidates", len(candidate_ids))
     scored = []
     total = len(candidate_ids)
     for i, item_id in enumerate(candidate_ids, start=1):
         candles = client.timeseries(item_id, timestep)
         if len(candles) >= min_candles:
-            result = run_backtest(strategy_factory(), candles, budget, item_id=item_id)
+            result = run_backtest(strategy_factory(), candles, budget,
+                                  item_id=item_id, max_hold_steps=max_hold_steps)
             if (result.n_trades > 0 and result.max_drawdown <= max_drawdown
                     and result.total_profit > 0):
-                scored.append((item_id, result.total_profit, result.hit_rate))
+                scored.append((item_id, result.risk_score, result.hit_rate))
         if on_progress is not None:
             on_progress(i, total)
     scored.sort(key=lambda x: (x[1], x[2]), reverse=True)

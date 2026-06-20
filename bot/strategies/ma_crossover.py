@@ -14,7 +14,7 @@ class MaCrossover(Strategy):
         self.params = {**self.default_params(), **params}
 
     def default_params(self):
-        return {"fast_ma": 10, "slow_ma": 30, "min_vol": 50, "stop_loss_pct": 0.15}
+        return {"fast_ma": 10, "slow_ma": 30, "min_vol": 10, "stop_loss_pct": 0.15}
 
     def _cross(self, market):
         """Return (fast, slow) SMA or (None, None) if too short."""

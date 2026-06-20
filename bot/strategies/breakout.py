@@ -14,7 +14,7 @@ class Breakout(Strategy):
         self.params = {**self.default_params(), **params}
 
     def default_params(self):
-        return {"channel_days": 30, "vol_mult": 2.0, "min_vol": 50,
+        return {"channel_days": 30, "vol_mult": 2.0, "min_vol": 10,
                 "trail_pct": 0.10}
 
     def _avg_candle_volume(self, history, window):

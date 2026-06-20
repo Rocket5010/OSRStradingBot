@@ -14,7 +14,7 @@ class CrashRecovery(Strategy):
         self.params = {**self.default_params(), **params}
 
     def default_params(self):
-        return {"drop_pct": 0.20, "floor_lookback": 30, "min_vol": 50,
+        return {"drop_pct": 0.20, "floor_lookback": 30, "min_vol": 10,
                 "stop_loss_pct": 0.15, "recover_pct": 0.9}
 
     def _reference(self, market):

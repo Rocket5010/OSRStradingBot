@@ -59,6 +59,26 @@ class StubClient:
                 {"avgHighPrice": 100, "avgLowPrice": 100, **v}]
 
 
+def test_two_bucket_includes_expensive_low_volume_item():
+    conn = fresh()
+    # cheap liquid item — would be the only pick under the old volume-only screen
+    add_price(conn, 1, low=100, high=110, vol=9000)
+    # expensive item, thin volume, real spread — must surface via value bucket
+    add_price(conn, 99, low=2_000_000, high=2_200_000, vol=30)
+    ids = curator.screen_two_bucket(
+        conn, liquid_min_vol=100, liquid_cap=10,
+        value_min_vol=10, value_min_price=100_000, value_cap=10)
+    assert 1 in ids and 99 in ids
+
+
+def test_two_bucket_dedupes():
+    conn = fresh()
+    # one item qualifies for both buckets; must appear once
+    add_price(conn, 5, low=500_000, high=600_000, vol=5000)
+    ids = curator.screen_two_bucket(conn, value_min_price=100_000)
+    assert ids.count(5) == 1
+
+
 def test_curate_ranks_by_backtest_profit():
     conn = fresh()
     picks = curator.curate(conn, StubClient(), WinOnItem2,

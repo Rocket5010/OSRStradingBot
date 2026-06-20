@@ -14,7 +14,7 @@ class MeanReversion(Strategy):
         self.params = {**self.default_params(), **params}
 
     def default_params(self):
-        return {"lookback": 30, "k": 2.0, "min_vol": 50, "stop_loss_pct": 0.15}
+        return {"lookback": 30, "k": 2.0, "min_vol": 10, "stop_loss_pct": 0.15}
 
     def _band_low(self, market):
         series = ind.price_series(market.history)

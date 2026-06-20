@@ -200,7 +200,7 @@ class PollScheduler:
         if strat_name not in found:
             return
         factory = type(found[strat_name])
-        candidates = curator.screen_candidates(conn)
+        candidates = curator.screen_two_bucket(conn)
         budget = int(db.get_config(conn, "curate_budget") or "10000000")
         picks = curator.curate(conn, self.client, factory, candidates, budget)
         if picks:

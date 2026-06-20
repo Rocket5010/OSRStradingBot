@@ -4,9 +4,11 @@ Finds new opportunities automatically so the bot isn't stuck on a fixed item lis
 
 ## What it does
 On a slow cadence (`curate_interval_s`, default 7 days), the [[Modules|scheduler]] runs:
-1. **Screen** — pick liquid candidates from [[Data Model|price_cache]] (filter by `vol_1h`, price range; cap to top N by volume). No API cost — the data is already polled.
-2. **Backtest** — for each candidate, fetch [[OSRS Wiki API|/timeseries]] and run the configured investing strategy through the Phase 3 [[Backtesting|backtest engine]].
-3. **Rank** — sort by profit (tie-break hit-rate), drop zero-trade / high-drawdown / unprofitable, keep the top N.
+1. **Screen (two buckets)** — `screen_two_bucket` merges two candidate sets from [[Data Model|price_cache]]:
+   - **Liquid** — top N by `vol_1h` (cheap, fast-flipping items; the original behaviour).
+   - **Value** — expensive items (`low >= value_min_price`, default 100k) at a much lower volume floor (default 10), ranked by `spread * vol_1h`. Without this bucket the volume-DESC sort buries every expensive high-margin item (whips, armour, 3rd-age) under cheap runes. No API cost — data is already polled.
+2. **Backtest** — for each candidate, fetch [[OSRS Wiki API|/timeseries]] and run the configured investing strategy through the Phase 3 [[Backtesting|backtest engine]] (with `max_hold_steps`).
+3. **Rank** — sort by **risk-adjusted gp/day** ([[Backtesting|risk_score]]), drop zero-trade / high-drawdown / unprofitable, keep the top N.
 4. **Save** — write the winners to the `watchlist` [[Data Model|config]] key.
 
 ## How the live engine uses it

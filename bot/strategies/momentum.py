@@ -22,7 +22,7 @@ class Momentum(Strategy):
         self.params = {**self.default_params(), **params}
 
     def default_params(self):
-        return {"lookback": 5, "min_vol": 50, "stop_loss_pct": 0.15}
+        return {"lookback": 5, "min_vol": 10, "stop_loss_pct": 0.15}
 
     def find_buys(self, markets, budget):
         out = []

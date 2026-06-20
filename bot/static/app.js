@@ -130,9 +130,11 @@ function renderBacktest(data) {
   const rows = data.ranking || [];
   $("bt-body").innerHTML = rows.length ? rows.map((r) => `
     <tr><td>${r.strategy}</td>
+    <td class="${(r.profit_per_day || 0) >= 0 ? "up" : "down"}">${fmt(r.profit_per_day)}</td>
     <td class="${r.profit >= 0 ? "up" : "down"}">${fmt(r.profit)}</td>
-    <td>${r.trades}</td><td>${Math.round(r.win_rate * 100)}%</td></tr>`
-  ).join("") : `<tr><td colspan="4" class="mut">No backtest yet — click Run backtest</td></tr>`;
+    <td>${r.trades}</td><td>${Math.round(r.win_rate * 100)}%</td>
+    <td>${Math.round((r.max_drawdown || 0) * 100)}%</td></tr>`
+  ).join("") : `<tr><td colspan="6" class="mut">No backtest yet — click Run backtest</td></tr>`;
 }
 
 function renderBacktestStatus(s, data) {

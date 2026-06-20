@@ -14,7 +14,7 @@ class Rsi(Strategy):
         self.params = {**self.default_params(), **params}
 
     def default_params(self):
-        return {"rsi_period": 14, "lo": 30, "hi": 70, "min_vol": 50,
+        return {"rsi_period": 14, "lo": 30, "hi": 70, "min_vol": 10,
                 "stop_loss_pct": 0.15}
 
     def _rsi(self, market):

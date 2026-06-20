@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 
 from bot.strategies.base import MarketData
 from bot.tax import ge_tax
-from bot.backtest.metrics import total_profit, hit_rate, max_drawdown
+from bot.backtest.metrics import (
+    total_profit, hit_rate, max_drawdown, profit_per_day, risk_score)
 
 
 @dataclass
@@ -26,6 +27,10 @@ class BacktestResult:
     max_drawdown: float
     final_equity: int
     trades: list = field(default_factory=list)
+    n_candles: int = 0
+    roi: float = 0.0
+    profit_per_day: float = 0.0
+    risk_score: float = 0.0
 
 
 def _close(pos, sell_price):
@@ -94,11 +99,18 @@ def run_backtest(strategy, candles, budget, item_id=1, name="item",
             cash += (last_high - ge_tax(last_high)) * pos.qty
             open_positions.remove(pos)
 
+    dd = max_drawdown(equity_curve)
+    n_candles = len(candles)
+    tp = total_profit(trades)
     return BacktestResult(
-        total_profit=total_profit(trades),
+        total_profit=tp,
         n_trades=len(trades),
         hit_rate=hit_rate(trades),
-        max_drawdown=max_drawdown(equity_curve),
+        max_drawdown=dd,
         final_equity=cash,
         trades=trades,
+        n_candles=n_candles,
+        roi=(tp / budget) if budget else 0.0,
+        profit_per_day=profit_per_day(trades, n_candles),
+        risk_score=risk_score(trades, n_candles, dd),
     )
