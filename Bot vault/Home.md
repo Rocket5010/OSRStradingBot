@@ -23,6 +23,7 @@ Map of Content (MOC). Start here. Open the **graph view** to see how everything 
 - Trend/momentum: [[ma_crossover]] · [[momentum]] · [[breakout]]
 - [[Backtesting]] — find the best strategy
 - [[Watchlist Curator]] — auto-find new items to watch
+- [[Auto-pilot]] — bot auto-runs the best-ranked strategy
 
 ## 🌐 External
 - [[OSRS Wiki API]] — the free data source

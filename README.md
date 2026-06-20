@@ -17,18 +17,19 @@ nothing to run.
 ## What it does
 
 1. **Polls** live GE prices every 5 minutes.
-2. **Runs strategies** you start manually, each with its own gp budget.
-3. **Proposes buys** within budget and **recommends sells** (target margin +
-   stop-loss + max hold time).
+2. **Auto-pilot**: the bot weekly backtests all strategies, picks the
+   best-ranked one, and trades within your **auto-budget** — no manual
+   strategy-picking.
+3. **Proposes buys** within budget and **recommends sells** (each position
+   remembers the strategy + params that bought it, so it sells the right way).
 4. Shows it all in a **dark + gold dashboard** — accept a buy, mark it filled,
    sell, or cancel, each with one click.
 5. Optional **webhook notifications** (Discord) push signals to your phone.
 6. Tracks a **bond goal** — progress toward one bond (~14M gp) every 14 days.
 
-Two families of strategy are included: **active flipping** (`margin_flip`) and
-**investing** (`mean_reversion`, `bollinger`, `rsi`, `crash_recovery`,
-`ma_crossover`, `momentum`, `breakout`). A backtester ranks them over historical
-data so you can pick the best one before risking gp.
+Eight strategies ship: **active flipping** (`margin_flip`) and **investing**
+(`mean_reversion`, `bollinger`, `rsi`, `crash_recovery`, `ma_crossover`,
+`momentum`, `breakout`). The backtester ranks them; auto-pilot runs the winner.
 
 ---
 
@@ -55,17 +56,21 @@ export OSRS_BOT_UA="osrs-flip-bot/1.0 (you@example.com)" # macOS/Linux
 ## Using it
 
 1. Open the dashboard at <http://127.0.0.1:8000>.
-2. Set your capital (optional, drives the overview/free-budget numbers):
-   ```bash
-   curl -X POST http://127.0.0.1:8000/api/config/capital \
-     -H "Content-Type: application/json" -d "{\"value\":\"50000000\"}"
-   ```
-3. Pick a strategy, enter a gp budget, click **Start**.
+2. In **Settings**, set your **Capital** and your **Auto-budget** (the gp the
+   bot may trade with; 0 = paused), then **Save**.
+3. Click **Run backtest** once to seed the strategy ranking (it also refreshes
+   weekly on its own). Auto-pilot then starts a single auto-run on the
+   best-ranked strategy within your auto-budget — the **Auto-pilot** panel shows
+   the active strategy, budget and spent.
 4. When the bot proposes a buy, click **Accept**, place that order in the GE,
    then click **Filled** once it fills.
 5. When the bot recommends a sell, click **Sell**, place the sell in the GE,
-   then **Sold** (enter the price). P/L is recorded against the strategy's run.
+   then **Sold** (enter the price). Each position is sold using the strategy
+   that bought it.
 6. Use **Cancel** for any order that doesn't fill in-game.
+
+> The watchlist (which items the bot considers) is auto-curated — click **Curate
+> now** to seed it. See the **Watchlist** block in Settings.
 
 ---
 
