@@ -44,6 +44,8 @@
         <input id="set-auto-budget" type="number" placeholder="e.g. 500000000"></label>
       <label>Min margin per item (gp) — skip thinner trades
         <input id="set-min-margin" type="number" placeholder="e.g. 50"></label>
+      <label>Diversify across N strategies — split budget for lower risk
+        <input id="set-auto-strategies" type="number" placeholder="3"></label>
       <label>Bond goal (days)
         <input id="set-bond-days" type="number" placeholder="14"></label>
       <label>Discord webhook URL
@@ -65,8 +67,9 @@
   <section class="runs card">
     <h2>Auto-pilot <span id="active-strategy" class="tagsell" style="float:right;font-size:13px"></span></h2>
     <p class="mut" style="font-size:12px;margin:6px 0 12px">
-      The bot auto-selects the best-ranked strategy and trades within your
-      auto-budget (set it in Settings). Set it to 0 to pause.</p>
+      The bot splits your auto-budget across the top-N best-ranked strategies
+      (N = "Diversify" in Settings) for lower risk, and trades within it. Set
+      auto-budget to 0 to pause. Dropped strategies keep selling what they hold.</p>
     <table><thead><tr><th>Strategy</th><th>Budget</th><th>Spent</th>
       <th>State</th></tr></thead>
       <tbody id="runs-body"></tbody></table>

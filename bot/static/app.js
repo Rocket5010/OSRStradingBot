@@ -14,17 +14,19 @@ async function api(path, method = "GET", body) {
 }
 
 async function loadSettings() {
-  const [capital, autoBudget, bondDays, webhook, curateDays, minMargin] = await Promise.all([
-    api("/config/capital"), api("/config/auto_budget"), api("/config/bond_days"),
-    api("/config/notify_webhook"), api("/config/curate_interval_days"),
-    api("/config/min_margin_gp"),
-  ]);
+  const [capital, autoBudget, bondDays, webhook, curateDays, minMargin, autoStrats] =
+    await Promise.all([
+      api("/config/capital"), api("/config/auto_budget"), api("/config/bond_days"),
+      api("/config/notify_webhook"), api("/config/curate_interval_days"),
+      api("/config/min_margin_gp"), api("/config/auto_strategies"),
+    ]);
   if (capital.value != null) $("set-capital").value = capital.value;
   if (autoBudget.value != null) $("set-auto-budget").value = autoBudget.value;
   if (bondDays.value != null) $("set-bond-days").value = bondDays.value;
   if (webhook.value != null) $("set-webhook").value = webhook.value;
   if (curateDays.value != null) $("set-curate-days").value = curateDays.value;
   if (minMargin.value != null) $("set-min-margin").value = minMargin.value;
+  if (autoStrats.value != null) $("set-auto-strategies").value = autoStrats.value;
 }
 
 async function saveSettings() {
@@ -35,6 +37,7 @@ async function saveSettings() {
     ["notify_webhook", $("set-webhook").value.trim()],
     ["curate_interval_days", $("set-curate-days").value.trim()],
     ["min_margin_gp", $("set-min-margin").value.trim()],
+    ["auto_strategies", $("set-auto-strategies").value.trim()],
   ];
   for (const [key, value] of entries) {
     if (value !== "") await api(`/config/${key}`, "POST", { value });
@@ -85,8 +88,10 @@ async function sold(id) {
 }
 
 function renderOverview(o) {
-  $("active-strategy").textContent = o.active_strategy
-    ? `active: ${o.active_strategy}` : "idle — set auto-budget + run backtest";
+  const act = o.active_strategies && o.active_strategies.length
+    ? o.active_strategies : (o.active_strategy ? [o.active_strategy] : []);
+  $("active-strategy").textContent = act.length
+    ? `active: ${act.join(", ")}` : "idle — set auto-budget + run backtest";
   $("stat-capital").textContent = fmt(o.capital);
   $("stat-capital-sub").textContent = `${fmt(o.free)} free · ${fmt(o.committed)} committed`;
   $("stat-profit").textContent = (o.period_profit >= 0 ? "+" : "") + fmt(o.period_profit);

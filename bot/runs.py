@@ -74,6 +74,45 @@ def ensure_auto_run(conn, strategy, budget, params=None):
     return row["id"]
 
 
+def ensure_auto_runs(conn, specs):
+    """Diversified auto-pilot: keep exactly one running auto-run per strategy in
+    `specs` (a list of (strategy, budget, params)). Updates budget/params in
+    place, creates missing ones, and stops auto-runs whose strategy dropped out
+    of `specs`. Stopping a run does NOT touch its open positions — the engine's
+    sell loop runs over filled positions regardless of run state, so a dropped
+    strategy keeps selling what it bought. Returns {strategy: run_id}."""
+    want = {strategy: (budget, params) for strategy, budget, params in specs}
+    existing = conn.execute(
+        "SELECT * FROM strategy_runs WHERE auto=1 AND state='running'").fetchall()
+    result, seen = {}, set()
+    for row in existing:
+        strat = row["strategy"]
+        if strat in want and strat not in seen:
+            budget, params = want[strat]
+            pj = json.dumps(params or {})
+            if row["budget_gp"] != budget or (row["params_json"] or "{}") != pj:
+                conn.execute(
+                    "UPDATE strategy_runs SET budget_gp=?, params_json=? WHERE id=?",
+                    (budget, pj, row["id"]))
+            seen.add(strat)
+            result[strat] = row["id"]
+        else:
+            # strategy no longer wanted (or a duplicate row) -> stop it
+            conn.execute(
+                "UPDATE strategy_runs SET state='stopped', stopped_at=? WHERE id=?",
+                (_now(), row["id"]))
+    for strat, (budget, params) in want.items():
+        if strat not in seen:
+            cur = conn.execute(
+                "INSERT INTO strategy_runs(strategy, params_json, budget_gp, "
+                "spent_gp, state, started_at, auto) "
+                "VALUES(?, ?, ?, 0, 'running', ?, 1)",
+                (strat, json.dumps(params or {}), budget, _now()))
+            result[strat] = cur.lastrowid
+    conn.commit()
+    return result
+
+
 def available(conn, run_id):
     r = get_run(conn, run_id)
     return r["budget_gp"] - r["spent_gp"] if r else 0

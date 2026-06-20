@@ -115,17 +115,26 @@ class PollScheduler:
                         log.warning("notification failed", exc_info=True)
 
     def _ensure_auto_pilot(self):
-        """Point the single auto-run at the current best-ranked strategy."""
+        """Diversified auto-pilot: split the auto-budget across the top-N
+        positively-scored strategies. Spreading capital lowers the damage if the
+        single best strategy stops working — better odds, less variance. N comes
+        from the `auto_strategies` config (default 3)."""
         from bot import db, backtest_rank
         from bot import runs as runs_mod
         auto_budget = int(db.get_config(self.conn, "auto_budget") or "0")
         if auto_budget <= 0:
+            runs_mod.ensure_auto_runs(self.conn, [])   # paused -> stop buying
             return
+        n = max(1, int(db.get_config(self.conn, "auto_strategies") or "3"))
         ranking = backtest_rank.get_ranking(self.conn).get("ranking") or []
-        if ranking and ranking[0]["score"] > 0:
-            top = ranking[0]
-            runs_mod.ensure_auto_run(self.conn, top["strategy"], auto_budget,
-                                     top.get("params") or {})
+        winners = [r for r in ranking if r["score"] > 0][:n]
+        if not winners:
+            runs_mod.ensure_auto_runs(self.conn, [])
+            return
+        budget_each = auto_budget // len(winners)
+        specs = [(w["strategy"], budget_each, w.get("params") or {})
+                 for w in winners]
+        runs_mod.ensure_auto_runs(self.conn, specs)
 
     def _start_backtest(self):
         """Refresh the strategy ranking. Threaded with its own connection when

@@ -52,6 +52,40 @@ def test_ensure_auto_run_updates_in_place():
     assert n == 1
 
 
+def test_ensure_auto_runs_creates_multiple():
+    conn = fresh()
+    res = runs.ensure_auto_runs(conn, [
+        ("breakout", 100, {"trail_pct": 0.08}),
+        ("momentum", 100, {}),
+        ("rsi", 100, {}),
+    ])
+    assert set(res) == {"breakout", "momentum", "rsi"}
+    rows = runs.list_runs(conn, state="running")
+    assert len(rows) == 3
+    bo = next(r for r in rows if r["strategy"] == "breakout")
+    assert bo["params_json"] == '{"trail_pct": 0.08}' and bo["auto"] == 1
+
+
+def test_ensure_auto_runs_updates_and_stops_dropped():
+    conn = fresh()
+    runs.ensure_auto_runs(conn, [("breakout", 100, {}), ("momentum", 100, {})])
+    # next pick drops momentum, keeps breakout (new budget), adds rsi
+    res = runs.ensure_auto_runs(conn, [("breakout", 200, {}), ("rsi", 100, {})])
+    running = {r["strategy"] for r in runs.list_runs(conn, state="running")}
+    assert running == {"breakout", "rsi"}
+    stopped = {r["strategy"] for r in runs.list_runs(conn, state="stopped")}
+    assert "momentum" in stopped
+    bo = runs.get_run(conn, res["breakout"])
+    assert bo["budget_gp"] == 200            # updated in place
+
+
+def test_ensure_auto_runs_empty_stops_all():
+    conn = fresh()
+    runs.ensure_auto_runs(conn, [("breakout", 100, {})])
+    runs.ensure_auto_runs(conn, [])
+    assert runs.list_runs(conn, state="running") == []
+
+
 def test_spent_and_available():
     conn = fresh()
     rid = runs.start_run(conn, "rsi", budget_gp=1000)

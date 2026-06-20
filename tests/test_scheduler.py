@@ -110,6 +110,46 @@ def test_ensure_auto_pilot_creates_run():
     assert rows[0]["params_json"] == '{"trail_pct": 0.08}'   # tuned params stored
 
 
+def test_ensure_auto_pilot_diversifies_and_splits_budget():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.set_config(conn, "auto_budget", "600000000")
+    db.set_config(conn, "auto_strategies", "2")
+    from bot import backtest_rank
+    backtest_rank.save_ranking(conn, [
+        {"strategy": "breakout", "score": 20.0, "profit": 9, "trades": 5,
+         "win_rate": 0.85, "params": {"trail_pct": 0.08}},
+        {"strategy": "momentum", "score": 12.0, "profit": 7, "trades": 5,
+         "win_rate": 0.6, "params": {}},
+        {"strategy": "rsi", "score": -5.0, "profit": -3, "trades": 5,
+         "win_rate": 0.3, "params": {}},   # negative -> excluded
+    ], 3)
+    sched = PollScheduler(conn, StubClient(), watchlist=[1], loader=loader_stub)
+    sched._ensure_auto_pilot()
+    rows = conn.execute("SELECT * FROM strategy_runs WHERE auto=1 AND "
+                        "state='running' ORDER BY strategy").fetchall()
+    assert {r["strategy"] for r in rows} == {"breakout", "momentum"}  # top-2, no rsi
+    assert all(r["budget_gp"] == 300000000 for r in rows)             # 600M / 2
+
+
+def test_ensure_auto_pilot_pause_stops_runs():
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.set_config(conn, "auto_budget", "100")
+    from bot import backtest_rank
+    backtest_rank.save_ranking(conn, [{"strategy": "breakout", "score": 5.0,
+                                       "profit": 1, "trades": 1, "win_rate": 1.0,
+                                       "params": {}}], 1)
+    sched = PollScheduler(conn, StubClient(), watchlist=[1], loader=loader_stub)
+    sched._ensure_auto_pilot()
+    assert len(conn.execute("SELECT 1 FROM strategy_runs WHERE state='running'")
+               .fetchall()) == 1
+    db.set_config(conn, "auto_budget", "0")          # pause
+    sched._ensure_auto_pilot()
+    assert conn.execute("SELECT COUNT(*) c FROM strategy_runs WHERE "
+                        "state='running'").fetchone()["c"] == 0
+
+
 def test_ensure_auto_pilot_noop_without_budget():
     conn = db.connect(":memory:")
     db.init_db(conn)
