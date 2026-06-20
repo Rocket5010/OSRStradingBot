@@ -4,12 +4,14 @@ from bot.strategies.base import BuySignal, SellDecision
 
 class StubClient:
     def timeseries(self, item_id, timestep):
-        # item 2 doubles (profitable); others flat
+        # item 2 doubles (profitable); others flat. Volume present (real candles
+        # always have it; the engine caps qty by it).
+        v = {"highPriceVolume": 1000, "lowPriceVolume": 1000}
         if item_id == 2:
-            return [{"avgHighPrice": 100, "avgLowPrice": 100},
-                    {"avgHighPrice": 200, "avgLowPrice": 190}]
-        return [{"avgHighPrice": 100, "avgLowPrice": 100},
-                {"avgHighPrice": 100, "avgLowPrice": 100}]
+            return [{"avgHighPrice": 100, "avgLowPrice": 100, **v},
+                    {"avgHighPrice": 200, "avgLowPrice": 190, **v}]
+        return [{"avgHighPrice": 100, "avgLowPrice": 100, **v},
+                {"avgHighPrice": 100, "avgLowPrice": 100, **v}]
 
 
 class Always:

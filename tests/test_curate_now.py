@@ -23,11 +23,12 @@ class StubClient:
         return {"1": {"highPriceVolume": 5000, "lowPriceVolume": 5000},
                 "2": {"highPriceVolume": 5000, "lowPriceVolume": 5000}}
     def timeseries(self, item_id, timestep):
+        v = {"highPriceVolume": 1000, "lowPriceVolume": 1000}
         if item_id == 2:
-            return [{"avgHighPrice": 100, "avgLowPrice": 100},
-                    {"avgHighPrice": 200, "avgLowPrice": 190}]
-        return [{"avgHighPrice": 100, "avgLowPrice": 100},
-                {"avgHighPrice": 100, "avgLowPrice": 100}]
+            return [{"avgHighPrice": 100, "avgLowPrice": 100, **v},
+                    {"avgHighPrice": 200, "avgLowPrice": 190, **v}]
+        return [{"avgHighPrice": 100, "avgLowPrice": 100, **v},
+                {"avgHighPrice": 100, "avgLowPrice": 100, **v}]
 
 
 def loader_stub(_dir):

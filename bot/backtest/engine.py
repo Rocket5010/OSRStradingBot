@@ -70,14 +70,19 @@ def run_backtest(strategy, candles, budget, item_id=1, name="item",
                 cash += (hi - ge_tax(hi)) * pos.qty
                 open_positions.remove(pos)
 
-        # buys
-        for sig in strategy.find_buys([md], cash):
-            cost = sig.price * sig.qty
+        # buys — size from a FIXED budget (not growing cash) so profitable
+        # round-trips don't compound into exponential nonsense, and never buy
+        # more than the period's traded volume (you can't buy what didn't trade).
+        for sig in strategy.find_buys([md], budget):
+            qty = min(sig.qty, vol)
+            if qty <= 0:
+                continue
+            cost = sig.price * qty
             if cost > cash:
                 continue
             cash -= cost
             open_positions.append(Position(item_id=item_id, buy_price=sig.price,
-                                           qty=sig.qty, high_water=hi, open_index=i))
+                                           qty=qty, high_water=hi, open_index=i))
 
         equity_curve.append(cash + sum(
             (hi - ge_tax(hi)) * p.qty for p in open_positions))

@@ -49,12 +49,14 @@ class WinOnItem2:
 
 class StubClient:
     def timeseries(self, item_id, timestep):
-        # item 2 doubles; others flat
+        # item 2 doubles; others flat. Volume present so the engine's qty cap
+        # doesn't zero out the buys.
+        v = {"highPriceVolume": 1000, "lowPriceVolume": 1000}
         if item_id == 2:
-            return [{"avgHighPrice": 100, "avgLowPrice": 100},
-                    {"avgHighPrice": 200, "avgLowPrice": 190}]
-        return [{"avgHighPrice": 100, "avgLowPrice": 100},
-                {"avgHighPrice": 100, "avgLowPrice": 100}]
+            return [{"avgHighPrice": 100, "avgLowPrice": 100, **v},
+                    {"avgHighPrice": 200, "avgLowPrice": 190, **v}]
+        return [{"avgHighPrice": 100, "avgLowPrice": 100, **v},
+                {"avgHighPrice": 100, "avgLowPrice": 100, **v}]
 
 
 def test_curate_ranks_by_backtest_profit():

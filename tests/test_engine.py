@@ -65,3 +65,47 @@ def test_final_equity_equals_budget_plus_profit():
     candles = [candle(hi=105, lo=100), candle(hi=120, lo=118)]
     res = run_backtest(BuyOnceSellHigh(), candles, budget=1000)
     assert res.final_equity == 1000 + res.total_profit
+
+
+def test_no_compounding_constant_qty():
+    # A strategy that always sizes by the budget and round-trips every candle.
+    # Before the fix, qty grew with cash (compounding) -> exponential blowup.
+    # After the fix it sizes from a fixed budget, so every trade has equal qty.
+    from bot.strategies.base import BuySignal, SellDecision
+    from bot.strategies.sizing import size_qty
+
+    class FixedFlipper:
+        name = "ff"
+        def __init__(self, **p): pass
+        def find_buys(self, markets, budget):
+            m = markets[0]
+            q = size_qty(m.low, budget, m.buy_limit)
+            return [BuySignal(item_id=m.item_id, price=m.low, qty=q, reason="")] if q > 0 else []
+        def should_sell(self, position, market):
+            return SellDecision(sell=market.high > position.buy_price, reason="")
+
+    # every candle: buy at 100, sellable at 110 next candle; plenty of volume
+    candles = [candle(hi=110, lo=100, vol=10**9) for _ in range(8)]
+    res = run_backtest(FixedFlipper(), candles, budget=1_000_000)
+    qtys = {t["qty"] for t in res.trades}
+    assert res.n_trades >= 3
+    assert len(qtys) == 1            # constant qty -> no compounding
+
+
+def test_volume_caps_quantity():
+    from bot.strategies.base import BuySignal, SellDecision
+
+    class BigBuyer:
+        name = "bb"
+        def __init__(self, **p): self.bought = False
+        def find_buys(self, markets, budget):
+            if self.bought: return []
+            self.bought = True
+            return [BuySignal(item_id=1, price=1, qty=10**9, reason="")]  # absurd qty
+        def should_sell(self, position, market):
+            return SellDecision(sell=True, reason="")
+
+    # candle volume total = 50+50 = 100; qty must be capped to 100
+    candles = [candle(hi=2, lo=1, vol=50), candle(hi=3, lo=2, vol=50)]
+    res = run_backtest(BigBuyer(), candles, budget=10**12)
+    assert res.trades[0]["qty"] == 100
