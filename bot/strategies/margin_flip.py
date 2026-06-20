@@ -15,7 +15,7 @@ class MarginFlip(Strategy):
 
     def default_params(self):
         return {"min_margin": 50, "min_vol": 100, "min_roi": 0.0,
-                "target_pct": 0.03, "stop_loss_pct": 0.05}
+                "target_pct": 0.03, "stop_loss_pct": 0.05, "vol_fraction": 0.25}
 
     def find_buys(self, markets, budget):
         p = self.params
@@ -29,7 +29,8 @@ class MarginFlip(Strategy):
             if (margin < p["min_margin"] or m.vol_1h < p["min_vol"]
                     or roi < p["min_roi"]):
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h,
+                           p["vol_fraction"])
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

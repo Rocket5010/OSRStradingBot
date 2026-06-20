@@ -14,7 +14,8 @@ class MeanReversion(Strategy):
         self.params = {**self.default_params(), **params}
 
     def default_params(self):
-        return {"lookback": 30, "k": 2.0, "min_vol": 10, "stop_loss_pct": 0.15}
+        return {"lookback": 30, "k": 2.0, "min_vol": 10, "stop_loss_pct": 0.15,
+                "vol_fraction": 0.25}
 
     def _band_low(self, market):
         series = ind.price_series(market.history)
@@ -35,7 +36,8 @@ class MeanReversion(Strategy):
             band_low, _ = self._band_low(m)
             if band_low is None or m.low >= band_low:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h,
+                           self.params["vol_fraction"])
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

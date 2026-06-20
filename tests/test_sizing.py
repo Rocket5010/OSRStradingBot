@@ -25,3 +25,13 @@ def test_limited_by_volume():
 
 def test_volume_none_is_no_cap():
     assert size_qty(price=1, budget=1000, buy_limit=0, volume=None) == 1000
+
+
+def test_vol_fraction_caps_to_slice_of_volume():
+    # 25% of 1000 volume = 250
+    assert size_qty(price=1, budget=10**9, buy_limit=0, volume=1000,
+                    vol_fraction=0.25) == 250
+
+
+def test_vol_fraction_default_is_full_volume():
+    assert size_qty(price=1, budget=10**9, buy_limit=0, volume=400) == 400

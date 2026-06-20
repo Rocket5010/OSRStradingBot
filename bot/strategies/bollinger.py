@@ -14,7 +14,8 @@ class Bollinger(Strategy):
         self.params = {**self.default_params(), **params}
 
     def default_params(self):
-        return {"period": 20, "k": 2.0, "min_vol": 10, "stop_loss_pct": 0.15}
+        return {"period": 20, "k": 2.0, "min_vol": 10, "stop_loss_pct": 0.15,
+                "vol_fraction": 0.25}
 
     def _bands(self, market):
         series = ind.price_series(market.history)
@@ -29,7 +30,8 @@ class Bollinger(Strategy):
             bands = self._bands(m)
             if bands is None or m.low > bands[0]:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h,
+                           self.params["vol_fraction"])
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

@@ -15,7 +15,7 @@ class Rsi(Strategy):
 
     def default_params(self):
         return {"rsi_period": 14, "lo": 30, "hi": 70, "min_vol": 10,
-                "stop_loss_pct": 0.15}
+                "stop_loss_pct": 0.15, "vol_fraction": 0.25}
 
     def _rsi(self, market):
         series = ind.price_series(market.history)
@@ -30,7 +30,8 @@ class Rsi(Strategy):
             r = self._rsi(m)
             if r is None or r >= self.params["lo"]:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h,
+                           self.params["vol_fraction"])
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

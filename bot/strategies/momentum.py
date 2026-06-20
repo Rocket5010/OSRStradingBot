@@ -22,7 +22,8 @@ class Momentum(Strategy):
         self.params = {**self.default_params(), **params}
 
     def default_params(self):
-        return {"lookback": 5, "min_vol": 10, "stop_loss_pct": 0.15}
+        return {"lookback": 5, "min_vol": 10, "stop_loss_pct": 0.15,
+                "vol_fraction": 0.25}
 
     def find_buys(self, markets, budget):
         out = []
@@ -33,7 +34,8 @@ class Momentum(Strategy):
             series = ind.price_series(m.history)
             if not _is_rising(series, self.params["lookback"]):
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h,
+                           self.params["vol_fraction"])
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

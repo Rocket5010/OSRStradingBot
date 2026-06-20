@@ -15,7 +15,7 @@ class Breakout(Strategy):
 
     def default_params(self):
         return {"channel_days": 30, "vol_mult": 2.0, "min_vol": 10,
-                "trail_pct": 0.10}
+                "trail_pct": 0.10, "vol_fraction": 0.25}
 
     def _avg_candle_volume(self, history, window):
         vols = [(c.get("highPriceVolume") or 0) + (c.get("lowPriceVolume") or 0)
@@ -38,7 +38,8 @@ class Breakout(Strategy):
             avg_vol = self._avg_candle_volume(m.history, p["channel_days"])
             if m.vol_1h < p["vol_mult"] * avg_vol:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h,
+                           p["vol_fraction"])
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,

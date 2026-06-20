@@ -15,7 +15,7 @@ class CrashRecovery(Strategy):
 
     def default_params(self):
         return {"drop_pct": 0.20, "floor_lookback": 30, "min_vol": 10,
-                "stop_loss_pct": 0.15, "recover_pct": 0.9}
+                "stop_loss_pct": 0.15, "recover_pct": 0.9, "vol_fraction": 0.25}
 
     def _reference(self, market):
         series = ind.price_series(market.history)
@@ -37,7 +37,8 @@ class CrashRecovery(Strategy):
             crash_line = ref * (1 - self.params["drop_pct"])
             if m.low > crash_line:
                 continue
-            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h)
+            qty = size_qty(m.low, remaining, m.buy_limit, m.vol_1h,
+                           self.params["vol_fraction"])
             if qty <= 0:
                 continue
             out.append(BuySignal(item_id=m.item_id, price=m.low, qty=qty,
