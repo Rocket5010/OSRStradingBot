@@ -60,7 +60,8 @@ def _committed(pos):
 def accept(conn, pid):
     p = get(conn, pid)
     _require(p, "proposed")
-    conn.execute("UPDATE positions SET state='accepted' WHERE id=?", (pid,))
+    conn.execute("UPDATE positions SET state='accepted', accepted_at=? WHERE id=?",
+                 (_now(), pid))
     if p["run_id"]:
         runs_mod.add_spent(conn, p["run_id"], _committed(p))
     conn.commit()

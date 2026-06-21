@@ -10,6 +10,30 @@ def client():
     return TestClient(create_app(conn))
 
 
+def test_positions_report_age_and_stale_flag():
+    from datetime import datetime, timezone, timedelta
+    from bot import positions as pos
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    c = TestClient(create_app(conn))
+    rid = c.post("/api/runs", json={"strategy": "rsi", "budget_gp": 10_000_000}).json()["id"]
+    pid = pos.create_proposed(conn, strategy="rsi", item_id=1, item_name="i1",
+                              buy_price=1000, qty=5, run_id=rid)
+    pos.accept(conn, pid)
+    # fresh accept -> not stale
+    rows = c.get("/api/positions").json()
+    p = next(r for r in rows if r["id"] == pid)
+    assert p["age_hours"] is not None and p["stale"] is False
+    # backdate acceptance 30h -> stale (default threshold 24h)
+    old = (datetime.now(timezone.utc) - timedelta(hours=30)).isoformat()
+    conn.execute("UPDATE positions SET accepted_at=? WHERE id=?", (old, pid))
+    conn.commit()
+    p = next(r for r in c.get("/api/positions").json() if r["id"] == pid)
+    assert p["stale"] is True
+    ov = c.get("/api/overview").json()
+    assert ov["stale_orders"] == 1 and ov["frozen_gp"] == 5000
+
+
 def test_list_strategies():
     c = client()
     r = c.get("/api/strategies")

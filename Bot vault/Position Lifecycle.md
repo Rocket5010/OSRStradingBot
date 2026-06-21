@@ -30,3 +30,13 @@ for items with no fresh market data are left untouched.
 
 ## Why cancel/withdraw exists
 GE orders don't always fill. The user can withdraw an unfilled buy or sell.
+
+## Stale-order flagging (frozen capital)
+The bot never auto-cancels (it can't see your GE order, and it might be mid-fill),
+but it surfaces orders that aren't filling so capital doesn't silently freeze.
+`accept` stamps `accepted_at`; `/api/positions` returns `age_hours` and a `stale`
+flag for **pending** states (`accepted`, `selling`) older than `order_stale_hours`
+(config, default 24). The dashboard marks them ⚠ and `/api/overview` reports
+`stale_orders` + `frozen_gp` (capital locked in stale orders). Capital is only
+released on `mark_sold`/`cancel`, so a dead order starves the budget until you act
+— the flag is the reminder to cancel or re-price (undercut/overcut).

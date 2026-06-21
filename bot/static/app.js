@@ -75,7 +75,11 @@ function renderPositions(positions) {
     else if (p.state === "selling") action =
       `<button class="btn accept" onclick="sold(${p.id})">Sold</button>
        <button class="btn ghost" onclick="act(${p.id},'cancel')">Cancel</button>`;
-    return `<tr><td>${p.item_name}</td><td class="mut">${p.state}</td>
+    const age = p.age_hours != null ? `${p.age_hours}h` : "";
+    const flag = p.stale
+      ? ` <span title="Not filling — cancel or re-price" style="color:#e0a04d">⚠ ${age}</span>`
+      : (age ? ` <span class="mut" style="font-size:11px">${age}</span>` : "");
+    return `<tr><td>${p.item_name}</td><td class="mut">${p.state}${flag}</td>
       <td>${pl}</td><td>${action}</td></tr>`;
   }).join("") : `<tr><td colspan="4" class="mut">No open positions</td></tr>`;
 }
@@ -97,6 +101,8 @@ function renderOverview(o) {
   $("stat-profit").textContent = (o.period_profit >= 0 ? "+" : "") + fmt(o.period_profit);
   $("stat-profit").className = "big " + (o.period_profit >= 0 ? "up" : "down");
   $("stat-open").textContent = o.open_positions;
+  $("stat-open-sub").textContent = o.stale_orders
+    ? `⚠ ${o.stale_orders} stale · ${fmt(o.frozen_gp)} frozen` : "";
   $("stat-bond").textContent = fmt(o.bond_price);
   const pct = Math.max(0, Math.min(1, o.goal_progress)) * 100;
   $("goal-bar").style.width = pct + "%";

@@ -16,10 +16,48 @@ from bot.strategies.loader import load_strategies
 
 
 _OPEN = ("accepted", "filled", "selling")
+# states where capital is committed to an order that may never fill
+_PENDING = ("accepted", "selling")
 
 
 def _row(r):
     return dict(r) if r is not None else None
+
+
+def _parse_iso(s):
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _age_basis(d):
+    """Timestamp the current state started from, for age/staleness."""
+    state = d.get("state")
+    if state == "accepted":
+        return d.get("accepted_at") or d.get("created_at")
+    if state == "selling":
+        return d.get("filled_at") or d.get("accepted_at") or d.get("created_at")
+    if state == "filled":
+        return d.get("filled_at")
+    return d.get("created_at")
+
+
+def _enrich(d, now_dt, stale_hours):
+    """Add age_hours + stale to a position dict. stale flags pending orders
+    (accepted/selling) that have sat past the threshold — capital frozen in an
+    order that isn't filling, the user should cancel or re-price."""
+    started = _parse_iso(_age_basis(d))
+    if started is not None:
+        age_h = (now_dt - started).total_seconds() / 3600.0
+        d["age_hours"] = round(age_h, 1)
+        d["stale"] = d.get("state") in _PENDING and age_h >= stale_hours
+    else:
+        d["age_hours"] = None
+        d["stale"] = False
+    return d
 
 
 class StartRunBody(BaseModel):
@@ -89,7 +127,10 @@ def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=No
 
     @app.get("/api/positions")
     def list_positions(state: str | None = None):
-        return [_row(r) for r in pos_mod.list_positions(conn, state)]
+        stale_hours = float(db_mod.get_config(conn, "order_stale_hours") or "24")
+        now_dt = datetime.now(timezone.utc)
+        return [_enrich(_row(r), now_dt, stale_hours)
+                for r in pos_mod.list_positions(conn, state)]
 
     @app.post("/api/positions")
     def create_position(body: CreatePositionBody):
@@ -156,6 +197,18 @@ def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=No
             period_profit = profit_row["s"]
         else:
             period_profit = 0
+        # stale pending orders: capital frozen in buys/sells that aren't filling
+        stale_hours = float(db_mod.get_config(conn, "order_stale_hours") or "24")
+        now_dt = datetime.now(timezone.utc)
+        stale_orders, frozen_gp = 0, 0
+        for r in conn.execute(
+                "SELECT * FROM positions WHERE state IN ('accepted','selling')"
+                ).fetchall():
+            d = _enrich(dict(r), now_dt, stale_hours)
+            if d["stale"]:
+                stale_orders += 1
+                frozen_gp += (r["buy_price"] or 0) * (r["qty"] or 0)
+
         bond_price = cfg_int("bond_price", 0)
         auto_rows = conn.execute(
             "SELECT strategy FROM strategy_runs WHERE auto=1 AND state='running' "
@@ -168,6 +221,8 @@ def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=No
             "committed": committed,
             "free": capital - committed,
             "open_positions": open_count,
+            "stale_orders": stale_orders,
+            "frozen_gp": frozen_gp,
             "period_profit": period_profit,
             "bond_price": bond_price,
             "bond_days": cfg_int("bond_days", 14),
