@@ -13,6 +13,11 @@ from bot.strategies.loader import load_strategies
 # A spread of liquid items used when the watchlist is empty.
 DEFAULT_BASKET = [4151, 11802, 1515, 561, 565, 4587, 1127, 11212, 1392, 2, 11785, 12934]
 
+# Conservative fill assumption for ranking/curation/tuning: buys cost 1% more and
+# sells fetch 1% less than the period extreme, so rankings aren't inflated by the
+# fantasy of perfect fills (audit risk 2).
+DEFAULT_SLIPPAGE = 0.01
+
 
 def buy_limits(client):
     """{item_id: GE 4h buy limit} from /mapping, or {} if unavailable. Used so
@@ -64,7 +69,7 @@ def rank_over_items(client, item_ids, budget=10_000_000, timestep="24h",
         for name, proto in strats.items():
             params, _ = tuning.tune_strategy(
                 name, type(proto), candles_by_item, budget, limits=limits,
-                max_hold_steps=max_hold_steps)
+                max_hold_steps=max_hold_steps, slippage=DEFAULT_SLIPPAGE)
             tuned[name] = params
 
     agg = {name: {"profit": 0, "trades": 0, "wins": 0, "score": 0.0,
@@ -74,7 +79,8 @@ def rank_over_items(client, item_ids, budget=10_000_000, timestep="24h",
             params = tuned.get(name, {})
             r = run_backtest(type(proto)(**params), candles, budget,
                              item_id=item_id, buy_limit=limits.get(item_id, 0),
-                             max_hold_steps=max_hold_steps)
+                             max_hold_steps=max_hold_steps,
+                             slippage=DEFAULT_SLIPPAGE)
             a = agg[name]
             a["profit"] += r.total_profit
             a["trades"] += r.n_trades

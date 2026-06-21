@@ -75,7 +75,8 @@ def folds(candles, n_folds, min_len=25):
 
 
 def tune_strategy(strategy_name, strategy_cls, candles_by_item, budget,
-                  limits=None, n_folds=4, max_hold_steps=30, base_params=None):
+                  limits=None, n_folds=4, max_hold_steps=30, base_params=None,
+                  slippage=0.0):
     """Return the best parameter combo for a strategy across a basket, chosen by
     blocked cross-validation with the conservative objective. candles_by_item:
     {item_id: candles}. Returns (params, score). params is the combo only —
@@ -95,7 +96,7 @@ def tune_strategy(strategy_name, strategy_cls, candles_by_item, budget,
             for seg in folds(candles, n_folds):
                 r = run_backtest(strategy_cls(**params), seg, budget,
                                  item_id=item_id, buy_limit=limits.get(item_id, 0),
-                                 max_hold_steps=max_hold_steps)
+                                 max_hold_steps=max_hold_steps, slippage=slippage)
                 if r.n_trades == 0:
                     continue
                 s = conservative_score(r)

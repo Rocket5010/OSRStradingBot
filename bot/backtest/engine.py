@@ -42,8 +42,16 @@ def _close(pos, sell_price):
 
 def run_backtest(strategy, candles, budget, item_id=1, name="item",
                  buy_limit=0, members=False, max_hold_steps=None,
-                 candle_hours=24):
+                 candle_hours=24, slippage=0.0):
     cash = budget
+    # slippage models that you don't fill at the exact period low on buys nor the
+    # exact high on sells. Buys cost a bit more, sells fetch a bit less, so the
+    # backtest stops flattering itself with perfect fills (audit risk 2).
+    def _buy_px(p):
+        return int(round(p * (1.0 + slippage)))
+
+    def _sell_px(p):
+        return max(1, int(round(p * (1.0 - slippage))))
     open_positions = []
     trades = []
     equity_curve = []
@@ -80,8 +88,9 @@ def run_backtest(strategy, candles, budget, item_id=1, name="item",
             forced = max_hold_steps is not None and (i - pos.open_index) >= max_hold_steps
             decision = strategy.should_sell(pos, md)
             if decision.sell or forced:
-                trades.append(_close(pos, hi))
-                cash += (hi - ge_tax(hi)) * pos.qty
+                sell_px = _sell_px(hi)
+                trades.append(_close(pos, sell_px))
+                cash += (sell_px - ge_tax(sell_px)) * pos.qty
                 open_positions.remove(pos)
 
         # buys — size from a FIXED budget (not growing cash) so profitable
@@ -93,11 +102,12 @@ def run_backtest(strategy, candles, budget, item_id=1, name="item",
                 qty = min(qty, per_candle_limit)
             if qty <= 0:
                 continue
-            cost = sig.price * qty
+            buy_px = _buy_px(sig.price)
+            cost = buy_px * qty
             if cost > cash:
                 continue
             cash -= cost
-            open_positions.append(Position(item_id=item_id, buy_price=sig.price,
+            open_positions.append(Position(item_id=item_id, buy_price=buy_px,
                                            qty=qty, high_water=hi, open_index=i))
 
         equity_curve.append(cash + sum(
@@ -105,9 +115,10 @@ def run_backtest(strategy, candles, budget, item_id=1, name="item",
 
     # liquidate any remaining positions at the last valid high
     if last_high is not None:
+        liq = _sell_px(last_high)
         for pos in list(open_positions):
-            trades.append(_close(pos, last_high))
-            cash += (last_high - ge_tax(last_high)) * pos.qty
+            trades.append(_close(pos, liq))
+            cash += (liq - ge_tax(liq)) * pos.qty
             open_positions.remove(pos)
 
     dd = max_drawdown(equity_curve)

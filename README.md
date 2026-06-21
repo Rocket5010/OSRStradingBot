@@ -171,8 +171,11 @@ for row in rank_over_items(client, DEFAULT_BASKET):
           f"{round(row['win_rate']*100):>5}%")
 ```
 
-Backtest fills are assumed (buy at the period low, sell at the high, minus GE
-tax) since GE data has no order-book depth — so it's **guidance, not gospel**.
+Backtest fills are assumed (buy near the period low, sell near the high, minus GE
+tax) since GE data has no order-book depth. To avoid flattering perfect fills, a
+conservative **1% slippage** is applied (`DEFAULT_SLIPPAGE`): buys cost 1% more,
+sells fetch 1% less. It's still **guidance, not gospel** — live, expect to fill
+worse than the backtest, not better.
 
 ---
 

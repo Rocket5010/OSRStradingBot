@@ -38,6 +38,17 @@ def test_buy_then_sell_profit_after_tax():
     assert res.total_profit == 18
 
 
+def test_slippage_reduces_profit():
+    # buy at low=100 candle 0; sell at high=120 candle 1.
+    candles = [candle(hi=105, lo=100), candle(hi=120, lo=118)]
+    base = run_backtest(BuyOnceSellHigh(), candles, budget=1000)
+    slipped = run_backtest(BuyOnceSellHigh(), candles, budget=1000, slippage=0.05)
+    # buy 100->105, sell 120->114, tax floor(114*0.02)=2 -> pl=114-2-105=7
+    assert slipped.trades[0]["buy_price"] == 105
+    assert slipped.trades[0]["sell_price"] == 114
+    assert slipped.total_profit < base.total_profit
+
+
 def test_skips_none_price_candles():
     candles = [{"avgHighPrice": None, "avgLowPrice": None,
                 "highPriceVolume": 0, "lowPriceVolume": 0},
