@@ -14,6 +14,8 @@ class MarketData:
     history: list = field(default_factory=list)   # timeseries candles, if loaded
     buy_limit: int = 0  # GE 4h buy limit
     members: bool = False
+    high_time: int = None   # unix epoch of last insta-sell (high); None if unknown
+    low_time: int = None    # unix epoch of last insta-buy (low)
 
 
 @dataclass

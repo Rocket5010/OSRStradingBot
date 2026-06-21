@@ -223,6 +223,60 @@ def test_min_margin_gate_allows_wide_spread():
     assert len(pos.list_positions(conn, state="proposed")) == 1
 
 
+def _mkt(item_id, low, high, high_time=None, low_time=None, history=None):
+    return MarketData(item_id=item_id, name=f"i{item_id}", low=low, high=high,
+                      vol_1h=1000, history=history or [], buy_limit=1000,
+                      high_time=high_time, low_time=low_time)
+
+
+def test_stale_price_skips_buy():
+    import time
+    conn = fresh()
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000)
+    old = int(time.time()) - 200_000   # ~2.3 days old, beyond 86400 default
+    evaluate(conn, {1: _mkt(1, 100, 200, high_time=old, low_time=old)},
+             now=0.0, loader=loader_stub)
+    assert pos.list_positions(conn, state="proposed") == []
+
+
+def test_fresh_price_allows_buy():
+    import time
+    conn = fresh()
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000)
+    now = int(time.time())
+    evaluate(conn, {1: _mkt(1, 100, 200, high_time=now, low_time=now)},
+             now=0.0, loader=loader_stub)
+    assert len(pos.list_positions(conn, state="proposed")) == 1
+
+
+def test_spike_price_skips_buy():
+    conn = fresh()
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000_000)
+    hist = [{"avgLowPrice": 100, "avgHighPrice": 110} for _ in range(30)]
+    # current low 1000 is 10x the ~100 median -> spike (default factor 5) -> skip
+    evaluate(conn, {1: _mkt(1, 1000, 1100, history=hist)},
+             now=0.0, loader=loader_stub)
+    assert pos.list_positions(conn, state="proposed") == []
+
+
+def test_none_price_does_not_crash_or_buy():
+    conn = fresh()
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000)
+    # find_buys compares budget >= m.low; None low -> AlwaysBuy skips it, and the
+    # engine's guard also drops it. Must not raise.
+    evaluate(conn, {1: _mkt(1, None, None)}, now=0.0, loader=loader_stub)
+    assert pos.list_positions(conn, state="proposed") == []
+
+
+def test_buy_deduped_across_runs():
+    conn = fresh()
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000)
+    runs.start_run(conn, "alwaysbuy", budget_gp=10_000)   # second auto/manual run
+    evaluate(conn, {1: market(1, 100, 150)}, now=0.0, loader=loader_stub)
+    # only one run gets the item; the other sees it already open and skips
+    assert len(pos.list_positions(conn, state="proposed")) == 1
+
+
 def test_sell_uses_position_params_not_run_params():
     conn = fresh()
     # run carries a HIGH sell_at (would NOT sell); position carries a LOW one

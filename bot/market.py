@@ -39,15 +39,22 @@ def build_market_data(conn, mapping, history_cache, item_ids, now):
             "SELECT * FROM price_cache WHERE item_id=?", (item_id,)).fetchone()
         if row is None:
             continue
+        low, high = row["low"], row["high"]
+        # Drop unusable rows rather than letting None/garbage reach ge_tax and
+        # crash the tick, or letting a crossed book (high < low) fake a margin.
+        if low is None or high is None or low <= 0 or high <= 0 or high < low:
+            continue
         meta = mapping.get(str(item_id), {})
         markets.append(MarketData(
             item_id=item_id,
             name=meta.get("name", str(item_id)),
-            low=row["low"],
-            high=row["high"],
+            low=low,
+            high=high,
             vol_1h=row["vol_1h"],
             history=history_cache.get(item_id, now=now),
             buy_limit=meta.get("limit", 0) or 0,
             members=bool(meta.get("members", False)),
+            high_time=row["high_time"] if "high_time" in row.keys() else None,
+            low_time=row["low_time"] if "low_time" in row.keys() else None,
         ))
     return markets

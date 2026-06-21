@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS config (
 );
 CREATE TABLE IF NOT EXISTS price_cache (
     item_id INTEGER PRIMARY KEY,
-    low INTEGER, high INTEGER, vol_1h INTEGER, ts TEXT
+    low INTEGER, high INTEGER, vol_1h INTEGER, ts TEXT,
+    high_time INTEGER, low_time INTEGER
 );
 CREATE TABLE IF NOT EXISTS item_meta (
     item_id INTEGER PRIMARY KEY,
@@ -68,6 +69,7 @@ _MIGRATIONS = {
     "positions": [("high_water", "INTEGER"), ("ref_price", "INTEGER"), ("params_json", "TEXT")],
     "signals": [("position_id", "INTEGER")],
     "strategy_runs": [("auto", "INTEGER NOT NULL DEFAULT 0")],
+    "price_cache": [("high_time", "INTEGER"), ("low_time", "INTEGER")],
 }
 
 
