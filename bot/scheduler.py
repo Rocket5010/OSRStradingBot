@@ -125,6 +125,12 @@ class PollScheduler:
         if auto_budget <= 0:
             runs_mod.ensure_auto_runs(self.conn, [])   # paused -> stop buying
             return
+        # portfolio kill-switch: if the period's realized loss exceeds the
+        # drawdown-stop fraction of capital, stop opening new positions. Held
+        # positions keep selling (the sell loop is independent of auto-runs).
+        if self._drawdown_breached(db):
+            runs_mod.ensure_auto_runs(self.conn, [])
+            return
         n = max(1, int(db.get_config(self.conn, "auto_strategies") or "3"))
         ranking = backtest_rank.get_ranking(self.conn).get("ranking") or []
         winners = [r for r in ranking if r["score"] > 0][:n]
@@ -135,6 +141,23 @@ class PollScheduler:
         specs = [(w["strategy"], budget_each, w.get("params") or {})
                  for w in winners]
         runs_mod.ensure_auto_runs(self.conn, specs)
+
+    def _drawdown_breached(self, db):
+        """True if the period's realized P/L is a loss bigger than
+        max_drawdown_stop_pct of capital (config; 0 = off)."""
+        pct = float(db.get_config(self.conn, "max_drawdown_stop_pct") or "0")
+        if pct <= 0:
+            return False
+        capital = int(db.get_config(self.conn, "capital") or "0")
+        if capital <= 0:
+            return False
+        period_start = db.get_config(self.conn, "goal_period_start")
+        if not period_start:
+            return False
+        row = self.conn.execute(
+            "SELECT COALESCE(SUM(realized_pl), 0) AS s FROM positions "
+            "WHERE state='sold' AND closed_at >= ?", (period_start,)).fetchone()
+        return row["s"] < -(pct / 100.0) * capital
 
     def _start_backtest(self):
         """Refresh the strategy ranking. Threaded with its own connection when

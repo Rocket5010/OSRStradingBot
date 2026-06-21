@@ -4,7 +4,7 @@ positions and sell recommendations."""
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from bot import runs as runs_mod
 from bot import positions as pos_mod
@@ -45,6 +45,22 @@ def _has_open_position(conn, item_id):
         f"AND state IN ({','.join('?' * len(_OPEN_STATES))}) LIMIT 1",
         (item_id, *_OPEN_STATES)).fetchone()
     return row is not None
+
+
+_BUY_WINDOW_S = 4 * 3600  # GE buy limits reset every 4 hours
+
+
+def _recent_bought_qty(conn, item_id, now_dt):
+    """Units of an item bought within the last 4h (across all runs). Counts every
+    position accepted in the window that wasn't withdrawn before buying, so the
+    cumulative GE 4h limit is respected even across sequential buy/sell/buy."""
+    cutoff = (now_dt - timedelta(seconds=_BUY_WINDOW_S)).isoformat()
+    row = conn.execute(
+        "SELECT COALESCE(SUM(qty), 0) AS s FROM positions "
+        "WHERE item_id=? AND accepted_at IS NOT NULL AND accepted_at >= ? "
+        "AND state IN ('accepted','filled','selling','sold')",
+        (item_id, cutoff)).fetchone()
+    return row["s"] or 0
 
 
 def _price_age_s(m, epoch_now):
@@ -94,6 +110,7 @@ def evaluate(conn, markets, now, loader=load_strategies):
     max_age = int(_dbmod.get_config(conn, "max_price_age_s") or "86400")
     spike_factor = float(_dbmod.get_config(conn, "spike_factor") or "5")
     epoch_now = _time.time()
+    now_dt = datetime.now(timezone.utc)
 
     # --- buys, per running run ---
     for run in runs_mod.list_runs(conn, state="running"):
@@ -122,13 +139,21 @@ def evaluate(conn, markets, now, loader=load_strategies):
                 continue
             if (m.high - ge_tax(m.high) - sig.price) < min_margin:
                 continue
-            cost = sig.price * sig.qty
+            # cumulative 4h GE buy limit: cap qty by what's left of the limit
+            # after units already bought in the last 4h (across runs).
+            qty = sig.qty
+            if m.buy_limit and m.buy_limit > 0:
+                remaining = m.buy_limit - _recent_bought_qty(conn, sig.item_id, now_dt)
+                qty = min(qty, remaining)
+                if qty <= 0:
+                    continue
+            cost = sig.price * qty
             if cost > budget - spent_this_pass:
                 continue
             name = m.name if m else str(sig.item_id)
             pos_mod.create_proposed(
                 conn, strategy=run["strategy"], item_id=sig.item_id,
-                item_name=name, buy_price=sig.price, qty=sig.qty,
+                item_name=name, buy_price=sig.price, qty=qty,
                 run_id=run["id"], params=params)
             spent_this_pass += cost
 

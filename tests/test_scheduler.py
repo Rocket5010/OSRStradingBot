@@ -150,6 +150,31 @@ def test_ensure_auto_pilot_pause_stops_runs():
                         "state='running'").fetchone()["c"] == 0
 
 
+def test_drawdown_stop_pauses_buying():
+    import json
+    from datetime import datetime, timezone
+    conn = db.connect(":memory:")
+    db.init_db(conn)
+    db.set_config(conn, "auto_budget", "600000000")
+    db.set_config(conn, "capital", "500000000")
+    db.set_config(conn, "max_drawdown_stop_pct", "10")     # halt at -50M
+    db.set_config(conn, "goal_period_start", "2026-01-01T00:00:00+00:00")
+    from bot import backtest_rank
+    backtest_rank.save_ranking(conn, [{"strategy": "breakout", "score": 5.0,
+                                       "profit": 1, "trades": 1, "win_rate": 1.0,
+                                       "params": {}}], 1)
+    # a realized loss of 60M (> 10% of 500M) within the period
+    conn.execute("INSERT INTO positions(item_id, item_name, strategy, state, "
+                 "buy_price, qty, realized_pl, closed_at) VALUES"
+                 "(1,'i1','breakout','sold',100,1,-60000000,"
+                 "'2026-03-01T00:00:00+00:00')")
+    conn.commit()
+    sched = PollScheduler(conn, StubClient(), watchlist=[1], loader=loader_stub)
+    sched._ensure_auto_pilot()
+    assert conn.execute("SELECT COUNT(*) c FROM strategy_runs WHERE "
+                        "state='running'").fetchone()["c"] == 0   # buying paused
+
+
 def test_ensure_auto_pilot_noop_without_budget():
     conn = db.connect(":memory:")
     db.init_db(conn)

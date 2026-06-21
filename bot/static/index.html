@@ -46,6 +46,14 @@
         <input id="set-min-margin" type="number" placeholder="e.g. 50"></label>
       <label>Diversify across N strategies — split budget for lower risk
         <input id="set-auto-strategies" type="number" placeholder="3"></label>
+      <label>Max price age (s) — skip buys on staler prices; 0 = off
+        <input id="set-max-price-age" type="number" placeholder="86400"></label>
+      <label>Spike factor — skip buys above N× recent median; 0 = off
+        <input id="set-spike-factor" type="number" step="0.1" placeholder="5"></label>
+      <label>Stale order (hours) — flag unfilled orders past this
+        <input id="set-order-stale-hours" type="number" placeholder="24"></label>
+      <label>Drawdown stop (%) — pause buying if period loss exceeds; 0 = off
+        <input id="set-drawdown-stop" type="number" step="0.1" placeholder="0"></label>
       <label>Bond goal (days)
         <input id="set-bond-days" type="number" placeholder="14"></label>
       <label>Discord webhook URL

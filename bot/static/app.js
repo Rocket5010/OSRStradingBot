@@ -14,11 +14,13 @@ async function api(path, method = "GET", body) {
 }
 
 async function loadSettings() {
-  const [capital, autoBudget, bondDays, webhook, curateDays, minMargin, autoStrats] =
-    await Promise.all([
+  const [capital, autoBudget, bondDays, webhook, curateDays, minMargin, autoStrats,
+         maxAge, spike, staleHrs, ddStop] = await Promise.all([
       api("/config/capital"), api("/config/auto_budget"), api("/config/bond_days"),
       api("/config/notify_webhook"), api("/config/curate_interval_days"),
       api("/config/min_margin_gp"), api("/config/auto_strategies"),
+      api("/config/max_price_age_s"), api("/config/spike_factor"),
+      api("/config/order_stale_hours"), api("/config/max_drawdown_stop_pct"),
     ]);
   if (capital.value != null) $("set-capital").value = capital.value;
   if (autoBudget.value != null) $("set-auto-budget").value = autoBudget.value;
@@ -27,6 +29,10 @@ async function loadSettings() {
   if (curateDays.value != null) $("set-curate-days").value = curateDays.value;
   if (minMargin.value != null) $("set-min-margin").value = minMargin.value;
   if (autoStrats.value != null) $("set-auto-strategies").value = autoStrats.value;
+  if (maxAge.value != null) $("set-max-price-age").value = maxAge.value;
+  if (spike.value != null) $("set-spike-factor").value = spike.value;
+  if (staleHrs.value != null) $("set-order-stale-hours").value = staleHrs.value;
+  if (ddStop.value != null) $("set-drawdown-stop").value = ddStop.value;
 }
 
 async function saveSettings() {
@@ -38,6 +44,10 @@ async function saveSettings() {
     ["curate_interval_days", $("set-curate-days").value.trim()],
     ["min_margin_gp", $("set-min-margin").value.trim()],
     ["auto_strategies", $("set-auto-strategies").value.trim()],
+    ["max_price_age_s", $("set-max-price-age").value.trim()],
+    ["spike_factor", $("set-spike-factor").value.trim()],
+    ["order_stale_hours", $("set-order-stale-hours").value.trim()],
+    ["max_drawdown_stop_pct", $("set-drawdown-stop").value.trim()],
   ];
   for (const [key, value] of entries) {
     if (value !== "") await api(`/config/${key}`, "POST", { value });
@@ -94,8 +104,12 @@ async function sold(id) {
 function renderOverview(o) {
   const act = o.active_strategies && o.active_strategies.length
     ? o.active_strategies : (o.active_strategy ? [o.active_strategy] : []);
-  $("active-strategy").textContent = act.length
-    ? `active: ${act.join(", ")}` : "idle — set auto-budget + run backtest";
+  if (o.drawdown_halt) {
+    $("active-strategy").textContent = "⚠ buying paused — drawdown stop hit";
+  } else {
+    $("active-strategy").textContent = act.length
+      ? `active: ${act.join(", ")}` : "idle — set auto-budget + run backtest";
+  }
   $("stat-capital").textContent = fmt(o.capital);
   $("stat-capital-sub").textContent = `${fmt(o.free)} free · ${fmt(o.committed)} committed`;
   $("stat-profit").textContent = (o.period_profit >= 0 ? "+" : "") + fmt(o.period_profit);

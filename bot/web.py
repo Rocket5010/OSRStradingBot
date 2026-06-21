@@ -214,10 +214,14 @@ def create_app(conn, strategies_dir=None, curate_runner=None, curation_status=No
             "SELECT strategy FROM strategy_runs WHERE auto=1 AND state='running' "
             "ORDER BY id").fetchall()
         active = [r["strategy"] for r in auto_rows]
+        dd_pct = float(db_mod.get_config(conn, "max_drawdown_stop_pct") or "0")
+        drawdown_halt = (dd_pct > 0 and capital > 0
+                         and period_profit < -(dd_pct / 100.0) * capital)
         return {
             "capital": capital,
             "active_strategy": active[0] if active else None,
             "active_strategies": active,
+            "drawdown_halt": drawdown_halt,
             "committed": committed,
             "free": capital - committed,
             "open_positions": open_count,

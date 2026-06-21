@@ -277,6 +277,54 @@ def test_buy_deduped_across_runs():
     assert len(pos.list_positions(conn, state="proposed")) == 1
 
 
+class BigQtyBuy:
+    """Wants a large qty of every market item (engine must cap by buy limit)."""
+    name = "bigqty"
+    def __init__(self, **p): self.params = p
+    def find_buys(self, markets, budget):
+        return [BuySignal(item_id=m.item_id, price=m.low, qty=1000, reason="x")
+                for m in markets]
+    def should_sell(self, position, market):
+        return SellDecision(sell=False, reason="")
+
+
+def bigqty_loader(_dir):
+    return {"bigqty": BigQtyBuy()}
+
+
+def test_cumulative_4h_buy_limit_caps_qty():
+    import time
+    conn = fresh()
+    rid = runs.start_run(conn, "bigqty", budget_gp=10_000_000)
+    # already bought 8 of item 1 within the last 4h; buy_limit is 10
+    pid = pos.create_proposed(conn, strategy="bigqty", item_id=1, item_name="i1",
+                              buy_price=100, qty=8, run_id=rid)
+    pos.accept(conn, pid)               # accepted_at = now, counts toward 4h limit
+    # mark sold so it's not an open position (dedupe would otherwise block)
+    pos.mark_filled(conn, pid); pos.start_selling(conn, pid); pos.mark_sold(conn, pid, 150)
+    now = int(time.time())
+    m = MarketData(item_id=1, name="i1", low=100, high=150, vol_1h=1000,
+                   history=[], buy_limit=10, high_time=now, low_time=now)
+    evaluate(conn, {1: m}, now=0.0, loader=bigqty_loader)
+    prop = pos.list_positions(conn, state="proposed")
+    assert len(prop) == 1 and prop[0]["qty"] == 2     # 10 limit - 8 recent = 2
+
+
+def test_cumulative_4h_limit_blocks_when_exhausted():
+    import time
+    conn = fresh()
+    rid = runs.start_run(conn, "bigqty", budget_gp=10_000_000)
+    pid = pos.create_proposed(conn, strategy="bigqty", item_id=1, item_name="i1",
+                              buy_price=100, qty=10, run_id=rid)
+    pos.accept(conn, pid)
+    pos.mark_filled(conn, pid); pos.start_selling(conn, pid); pos.mark_sold(conn, pid, 150)
+    now = int(time.time())
+    m = MarketData(item_id=1, name="i1", low=100, high=150, vol_1h=1000,
+                   history=[], buy_limit=10, high_time=now, low_time=now)
+    evaluate(conn, {1: m}, now=0.0, loader=bigqty_loader)
+    assert pos.list_positions(conn, state="proposed") == []   # limit used up
+
+
 def test_sell_uses_position_params_not_run_params():
     conn = fresh()
     # run carries a HIGH sell_at (would NOT sell); position carries a LOW one
